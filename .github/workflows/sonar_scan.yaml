@@ -29,4 +29,5 @@ jobs:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       with:
         args: >
-          -Dproject.settings=./sonar-project.properties
+          -Dsonar.projectKey=Evaluation-Tool-Backend
+          -Dsonar.organization=FEvalTool
