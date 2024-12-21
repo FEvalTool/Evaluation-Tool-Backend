@@ -1,9 +1,11 @@
 name: "sonar_scan"
 on:
   pull_request:
+    branches:
+      - main    
 
 jobs:
-  build:
+  sonar_scan:
    runs-on: ubuntu-latest
    steps:
     - name: Checkout code
