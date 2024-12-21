@@ -13,9 +13,9 @@ jobs:
       with:
         fetch-depth: 0
     - name: Setup Sonar
-      uses: nelsoncanarinho/setup-sonar-action@v1.0.0
+      uses: xmidt-org/sonarcloud-project-config@v1      
       with:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        sonar-token: ${{ secrets.SONAR_TOKEN }}
     - name: Setup Python
       uses: actions/setup-python@v2
       with:
