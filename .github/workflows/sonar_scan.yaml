@@ -30,4 +30,4 @@ jobs:
       with:
         args: >
           -Dsonar.organization=fevaltool
-          -Dsonar.projectKey=Evaluation-Tool-Backend
+          -Dsonar.projectKey=FEvalTool_Evaluation-Tool-Backend
