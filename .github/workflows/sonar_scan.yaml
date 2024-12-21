@@ -2,7 +2,7 @@ name: "sonar_scan"
 on:
   pull_request:
     branches:
-      - main    
+      - main
 
 jobs:
   sonar_scan:
@@ -22,12 +22,12 @@ jobs:
         pip install -r requirements.txt
     - name: Run tox
       run: tox -e py
-    - name: Run SonarQube Scanner
+    - name: Run SonarCloud Scanner
       uses: sonarsource/sonarcloud-github-action@master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       with:
         args: >
-          -Dsonar.projectKey=Evaluation-Tool-Backend
+          -Dsonar.projectKey=FEvalTool_Evaluation-Tool-Backend
           -Dsonar.organization=FEvalTool
