@@ -13,8 +13,7 @@ jobs:
       with:
         fetch-depth: 0
     - name: Setup Sonar
-      id: setupSonar
-      uses: nelsoncanarinho/setup-sonar@v1.0.0
+      uses: nelsoncanarinho/setup-sonar-action@v1.0.0
       with:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     - name: Setup Python
