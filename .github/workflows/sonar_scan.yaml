@@ -1,8 +1,5 @@
 name: "sonar_scan"
 on:
-  push:
-    branches: 
-     - 'feat/init-django-docker'
   pull_request:
     branches:
       - main
