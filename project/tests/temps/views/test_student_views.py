@@ -165,7 +165,8 @@ class StudentViewsTestCase(APITestCase):
         self.assertEqual(returned_result, expected_result)
 
     def test_get_all_students_query_params_validation_error(self):
-        response = self.client.get(
+        # Case 1: sort_orders and sort_keys length is unequal
+        response_case1 = self.client.get(
             self.url,
             {
                 "all": True,
@@ -174,18 +175,36 @@ class StudentViewsTestCase(APITestCase):
                 "sort_keys[1]": "last_name",
             },
         )
-        returned_result = response.json()
+        returned_result_case1 = response_case1.json()
 
-        # Since this is overall validation error, it will be "non_field_errors"
-        expected_result = {
+        expected_result_case1 = {
             "message_type": VALIDATION_ERROR,
             "error-content": {
                 "non_field_errors": ["Sort keys and Sort values must have same length"]
             },
         }
 
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(returned_result, expected_result)
+        self.assertEqual(response_case1.status_code, 400)
+        self.assertEqual(returned_result_case1, expected_result_case1)
+
+        # Case 2: sort_orders value is invalid
+        response_case2 = self.client.get(
+            self.url,
+            {
+                "all": True,
+                "sort_keys[0]": "first_name",
+                "sort_orders[0]": "5",
+            },
+        )
+        returned_result_case2 = response_case2.json()
+
+        expected_result_case2 = {
+            "message_type": VALIDATION_ERROR,
+            "error-content": {"sort_orders": ["Sort orders must be 1 or -1"]},
+        }
+
+        self.assertEqual(response_case2.status_code, 400)
+        self.assertEqual(returned_result_case2, expected_result_case2)
 
     @mock.patch("temps.views.student_views.get_sort_query")
     def test_get_students_exception(self, mock_get_sort_query):
@@ -209,12 +228,12 @@ class StudentViewsTestCase(APITestCase):
         self.assertEqual(returned_result["last_name"], "Jackson")
 
     def test_create_student_payload_validation_error(self):
+        # Missing first_name field
         invalid_payload = self.created_data_payload.copy()
         invalid_payload.pop("first_name")
         response = self.client.post(self.url, data=invalid_payload)
         returned_result = response.json()
 
-        # Since this is first_name validation error, it will be "first_name"
         expected_result = {
             "message_type": VALIDATION_ERROR,
             "error-content": {"first_name": ["This field is required."]},
@@ -310,6 +329,7 @@ class StudentViewsTestCase(APITestCase):
         self.assertEqual(returned_result, expected_result)
 
     def test_update_student_payload_validation_error(self):
+        # Missing first_name field
         url = self.url_with_pk(1)
         invalid_payload = self.students_data[0].copy()
         invalid_payload.pop("id")
