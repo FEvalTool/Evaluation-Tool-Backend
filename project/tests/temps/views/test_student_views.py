@@ -3,7 +3,12 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 
 from temps.models import Student
-from temps.constants import DEFAULT_PAGE_SIZE, INTERNAL_SERVER_ERROR, VALIDATION_ERROR
+from temps.constants import (
+    DEFAULT_PAGE_SIZE,
+    INTERNAL_SERVER_ERROR,
+    VALIDATION_ERROR,
+    DOES_NOT_EXIST_ERROR,
+)
 
 
 class StudentViewsTestCase(APITestCase):
@@ -61,12 +66,18 @@ class StudentViewsTestCase(APITestCase):
             },
         ]
         data_instances = [Student(**data) for data in self.students_data]
-        # Temporary disabled auto_now_add in created date when create test data
+        # Temporary disabled auto date in "created_date" and "updated_at" fields when create test data
         Student.created_date.field.auto_now_add = False
+        Student.updated_at.field.auto_now = False
         Student.objects.bulk_create(data_instances)
         Student.created_date.field.auto_now_add = True
+        Student.updated_at.field.auto_now = True
 
         self.created_data_payload = {"first_name": "Andrew", "last_name": "Jackson"}
+
+    def url_with_pk(self, pk):
+        url = reverse("student-detail", kwargs={"pk": pk})
+        return url
 
     def test_get_all_students(self):
         response = self.client.get(self.url, {"all": True})
@@ -215,6 +226,45 @@ class StudentViewsTestCase(APITestCase):
     def test_create_student_exception(self, mock_create_func):
         mock_create_func.side_effect = ValueError("Mocked error")
         response = self.client.post(self.url, data=self.created_data_payload)
+        returned_result = response.json()
+
+        expected_result = {
+            "message_type": INTERNAL_SERVER_ERROR,
+            "error-content": "Mocked error",
+        }
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(returned_result, expected_result)
+
+    def test_get_student_detail(self):
+        url = self.url_with_pk(1)
+        response = self.client.get(url)
+        returned_result = response.json()
+
+        expected_result = self.students_data[0]
+
+        self.assertEqual(returned_result, expected_result)
+
+    def test_get_student_detail_not_found(self):
+        url = self.url_with_pk(20)
+        response = self.client.get(url)
+
+        returned_result = response.json()
+
+        expected_result = {
+            "message_type": DOES_NOT_EXIST_ERROR,
+            "error-content": "Student with id = 20 does not exist",
+        }
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(returned_result, expected_result)
+
+    @mock.patch("temps.views.student_views.Student.objects.get")
+    def test_get_student_detail_exception(self, mock_get_func):
+        mock_get_func.side_effect = ValueError("Mocked error")
+        url = self.url_with_pk(1)
+        response = self.client.get(url)
+
         returned_result = response.json()
 
         expected_result = {
