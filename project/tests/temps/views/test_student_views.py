@@ -9,6 +9,7 @@ from temps.constants import DEFAULT_PAGE_SIZE, INTERNAL_SERVER_ERROR, VALIDATION
 class StudentViewsTestCase(APITestCase):
     def setUp(self):
         self.url = reverse("student")
+
         self.students_data = [
             {
                 "id": 1,
@@ -60,9 +61,12 @@ class StudentViewsTestCase(APITestCase):
             },
         ]
         data_instances = [Student(**data) for data in self.students_data]
-        # Disabled auto_now_add in created date
+        # Temporary disabled auto_now_add in created date when create test data
         Student.created_date.field.auto_now_add = False
         Student.objects.bulk_create(data_instances)
+        Student.created_date.field.auto_now_add = True
+
+        self.created_data_payload = {"first_name": "Andrew", "last_name": "Jackson"}
 
     def test_get_all_students(self):
         response = self.client.get(self.url, {"all": True})
@@ -175,6 +179,42 @@ class StudentViewsTestCase(APITestCase):
     def test_get_students_exception(self, mock_get_sort_query):
         mock_get_sort_query.side_effect = ValueError("Mocked error")
         response = self.client.get(self.url)
+        returned_result = response.json()
+
+        expected_result = {
+            "message_type": INTERNAL_SERVER_ERROR,
+            "error-content": "Mocked error",
+        }
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(returned_result, expected_result)
+
+    def test_create_student(self):
+        response = self.client.post(self.url, data=self.created_data_payload)
+        returned_result = response.json()
+
+        self.assertEqual(returned_result["first_name"], "Andrew")
+        self.assertEqual(returned_result["last_name"], "Jackson")
+
+    def test_create_student_payload_validation_error(self):
+        invalid_payload = self.created_data_payload.copy()
+        invalid_payload.pop("first_name")
+        response = self.client.post(self.url, data=invalid_payload)
+        returned_result = response.json()
+
+        # Since this is first_name validation error, it will be "first_name"
+        expected_result = {
+            "message_type": VALIDATION_ERROR,
+            "error-content": {"first_name": ["This field is required."]},
+        }
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(returned_result, expected_result)
+
+    @mock.patch("temps.views.student_views.Student.objects.create")
+    def test_create_student_exception(self, mock_create_func):
+        mock_create_func.side_effect = ValueError("Mocked error")
+        response = self.client.post(self.url, data=self.created_data_payload)
         returned_result = response.json()
 
         expected_result = {
