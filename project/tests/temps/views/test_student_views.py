@@ -342,3 +342,40 @@ class StudentViewsTestCase(APITestCase):
 
         self.assertEqual(response.status_code, 500)
         self.assertEqual(returned_result, expected_result)
+
+    def test_delete_student(self):
+        url = self.url_with_pk(1)
+        response = self.client.delete(url)
+
+        checked_data_exist = Student.objects.filter(id=1)
+
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(len(checked_data_exist), 0)
+
+    def test_delete_student_detail_not_found(self):
+        url = self.url_with_pk(20)
+        response = self.client.delete(url)
+        returned_result = response.json()
+
+        expected_result = {
+            "message_type": DOES_NOT_EXIST_ERROR,
+            "error-content": "Student with id = 20 does not exist",
+        }
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(returned_result, expected_result)
+
+    @mock.patch("temps.views.student_views.Student.objects.get")
+    def test_delete_student_detail_exception(self, mock_get_func):
+        mock_get_func.side_effect = ValueError("Mocked error")
+        url = self.url_with_pk(1)
+        response = self.client.delete(url)
+        returned_result = response.json()
+
+        expected_result = {
+            "message_type": INTERNAL_SERVER_ERROR,
+            "error-content": "Mocked error",
+        }
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(returned_result, expected_result)

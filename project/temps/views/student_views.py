@@ -143,7 +143,7 @@ class StudentDetailView(APIView):
         try:
             student = Student.objects.get(pk=pk)
             student.delete()
-            return JsonResponse(data={}, status=status.HTTP_204_NO_CONTENT)
+            return JsonResponse({}, status=status.HTTP_204_NO_CONTENT)
         except Student.DoesNotExist:
             return JsonResponse(
                 {
