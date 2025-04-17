@@ -18,5 +18,4 @@ Including another URLconf
 from django.urls import path, include
 
 urlpatterns = [
-    path("student/", include("temps.urls.student_urls")),
 ]
