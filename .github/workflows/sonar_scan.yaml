@@ -7,6 +7,13 @@ on:
 jobs:
   sonar_scan:
    runs-on: ubuntu-latest
+   services:
+      mysql:
+        image: mysql:8.0.11
+        env:
+          MYSQL_ROOT_PASSWORD: zergling
+          MYSQL_DATABASE: mysql
+        ports: ['3306:3306']
    steps:
     - name: Checkout code
       uses: actions/checkout@v2
@@ -20,8 +27,18 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    - name: Run tox
-      run: tox -e py
+    - name: Run unit test
+      run: |
+        cd project
+        coverage run --source='.' manage.py test
+        coverage xml
+      env: 
+        SQL_ENGINE: django.db.backends.mysql
+        SQL_NAME: mysql
+        SQL_USER: root
+        SQL_PASSWORD: zergling
+        SQL_HOST: 127.0.0.1
+        SQL_PORT: 3306
     - name: Run SonarCloud Scanner
       uses: SonarSource/sonarqube-scan-action@v4.2.1
       env:

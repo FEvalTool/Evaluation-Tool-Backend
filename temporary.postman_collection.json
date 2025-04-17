@@ -1,0 +1,118 @@
+{
+	"info": {
+		"_postman_id": "34ffabdf-a4b5-4e5f-8329-b41724a39a8d",
+		"name": "temporary",
+		"description": "This is a temporary Postman APIs for temporary project\n\nNOTE: In Student model, email field is not required",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "25106836"
+	},
+	"item": [
+		{
+			"name": "Create",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"first_name\": \"Vu\",\n    \"last_name\": \"Tran\",\n    \"email\": \"vutran@gmail.com\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "http://localhost:8001/student/"
+			},
+			"response": []
+		},
+		{
+			"name": "List",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8001/student/?all=true&sort_keys[0]=last_name&sort_orders[0]=1&sort_keys[1]=id&sort_orders[1]=-1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8001",
+					"path": [
+						"student",
+						""
+					],
+					"query": [
+						{
+							"key": "all",
+							"value": "true",
+							"description": "If this is true, ignore page query param and display all"
+						},
+						{
+							"key": "page_index",
+							"value": "6",
+							"disabled": true
+						},
+						{
+							"key": "page_size",
+							"value": "4",
+							"disabled": true
+						},
+						{
+							"key": "sort_keys[0]",
+							"value": "last_name"
+						},
+						{
+							"key": "sort_orders[0]",
+							"value": "1"
+						},
+						{
+							"key": "sort_keys[1]",
+							"value": "id"
+						},
+						{
+							"key": "sort_orders[1]",
+							"value": "-1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Detail",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": "http://localhost:8001/student/23"
+			},
+			"response": []
+		},
+		{
+			"name": "Delete",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": "http://localhost:8001/student/23/"
+			},
+			"response": []
+		},
+		{
+			"name": "Update",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"first_name\": \"Vu\",\n    \"last_name\": \"Tram\",\n    \"email\": \"test@gmail.com\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "http://localhost:8001/student/20/"
+			},
+			"response": []
+		}
+	]
+}
