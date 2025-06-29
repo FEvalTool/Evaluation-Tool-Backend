@@ -10,7 +10,7 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /project
 COPY requirements.txt /project/
 RUN pip install -r requirements.txt
-COPY . /backend/
+COPY . /project/
 
 # Expose ports without publishing them to the host machine 
 # they’ll only be accessible to linked services
