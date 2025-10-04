@@ -549,7 +549,7 @@ class AuthViewSet(ViewSet):
 
             return JsonResponse(
                 {
-                    "message": "Successfully Retrieve Security QA token",
+                    "message": "Successfully retrieve Security QA verification token",
                     "token": token,
                 },
             )
@@ -597,6 +597,108 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.LOGIN,
+                    "error_type": ErrorTypes.EXCEPTION,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {
+                    "message": "Internal server error",
+                    "error-content": "An unexpected error occurred.",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=False, methods=["post"], url_path="token/password")
+    def generate_password_verification_token(self, request):
+        """
+        Endpoint to generate token when user enter password
+        """
+        try:
+            logger.info(
+                {
+                    "event_type": EventType.GENERATE_PASSWORD_VERIFICATION_TOKEN,
+                    "message": "Begin generate password verification token",
+                }
+            )
+            serializer = UserLoginSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            username = serializer.validated_data["username"]
+            user = CustomUser.objects.get(username=username)
+            if not user.is_security_question_set or user.is_default_password:
+                # If user has't login to setup for the first time, return error response
+                logger.error(
+                    {
+                        "event_type": EventType.GENERATE_PASSWORD_VERIFICATION_TOKEN,
+                        "error_type": ErrorTypes.UNAUTHORIZED,
+                        "error_content": f"User {username} hasn't setup account",
+                        "is_security_question_set": user.is_security_question_set,
+                        "is_default_password": user.is_default_password,
+                    }
+                )
+                return JsonResponse(
+                    {"message": f"User {username} hasn't setup account"},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            # Validate password
+            if not user.check_password(serializer.validated_data["password"]):
+                raise CustomUser.DoesNotExist
+
+            # Generate password verification token
+            token = create_jwt(
+                {
+                    "username": username,
+                    "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
+                }
+            )
+
+            logger.info(
+                {
+                    "event_type": EventType.GENERATE_PASSWORD_VERIFICATION_TOKEN,
+                    "message": "Get password verification token successfully",
+                    "username": username,
+                }
+            )
+
+            return JsonResponse(
+                {
+                    "message": "Successfully retrieve password verification token",
+                    "token": token,
+                },
+            )
+
+        except ValidationError as e:
+            logger.error(
+                {
+                    "event_type": EventType.GENERATE_PASSWORD_VERIFICATION_TOKEN,
+                    "error_content": e.detail,
+                }
+            )
+            return JsonResponse(
+                {
+                    "message": "Invalid request",
+                    "error_type": ErrorTypes.REQUEST_VALIDATION,
+                    "error-content": e.detail,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except CustomUser.DoesNotExist:
+            logger.error(
+                {
+                    "event_type": EventType.GENERATE_PASSWORD_VERIFICATION_TOKEN,
+                    "error_type": ErrorTypes.UNEXISTED,
+                    "error_content": "Username is not existed",
+                }
+            )
+            return JsonResponse(
+                {"message": "Username is not existed"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            logger.error(
+                {
+                    "event_type": EventType.GENERATE_PASSWORD_VERIFICATION_TOKEN,
                     "error_type": ErrorTypes.EXCEPTION,
                     "error_content": str(e),
                 }
