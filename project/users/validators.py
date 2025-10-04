@@ -1,4 +1,9 @@
 from django.core.validators import RegexValidator
+from rest_framework import serializers
+import re
+
+from .constants import PASSWORD_FORMAT
+
 
 class UserValidators:
     phone_validator = RegexValidator(
@@ -9,4 +14,7 @@ class UserValidators:
         regex=r"^(00[1-9]|0[1-9][0-9]|09[0-6])[0-9]{9}$",
         message="Identity number must be entered in the Vietnamese identity nuber format.",
     )
-    
+
+    def password_validator(password):
+        if re.search(PASSWORD_FORMAT, password) is None:
+            raise serializers.ValidationError("Incorrect password format")
