@@ -17,9 +17,11 @@ Including another URLconf
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from common.views import HealthViewSet
 from users.views import AccountViewSet, AuthViewSet
 
 router = DefaultRouter()
+router.register("health", HealthViewSet, basename="health")
 router.register("auth", AuthViewSet, basename="auth")
 router.register("account", AccountViewSet, basename="account")
 
