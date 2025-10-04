@@ -137,14 +137,20 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "users.CustomUser"
 
+# Implement environment 
+ENVIRONMENT = os.environ.get("ENVIRONMENT")
+
 # Customize the Token Timelines
 ALGORITHM = "HS256"
 EXPIRES_MINUTES = 60
 
 # Set CORS settings
-CORS_ORIGIN_ALLOW_ALL = json.loads(os.environ.get("CORS_ORIGIN_ALLOW_ALL"))
-CORS_ALLOWED_ORIGINS = json.loads(os.environ.get("FRONTEND_BASE_URL"))
-CORS_ALLOW_METHODS = json.loads(os.environ.get("CORS_ALLOW_METHODS"))
-ALLOWED_HOSTS = json.loads(os.environ.get("ALLOWED_HOSTS"))
-CORS_ALLOW_CREDENTIALS = json.loads(os.environ.get("CORS_ALLOW_CREDENTIALS"))
-CORS_ALLOW_HEADERS = json.loads(os.environ.get("CORS_ALLOW_HEADERS"))
+# In order to run sonarquebe => we don't actually need CORS related config
+# => ignore those config when ENVIRONMENT == TEST
+if ENVIRONMENT != "TEST":
+    CORS_ORIGIN_ALLOW_ALL = json.loads(os.environ.get("CORS_ORIGIN_ALLOW_ALL"))
+    CORS_ALLOWED_ORIGINS = json.loads(os.environ.get("FRONTEND_BASE_URL"))
+    CORS_ALLOW_METHODS = json.loads(os.environ.get("CORS_ALLOW_METHODS"))
+    ALLOWED_HOSTS = json.loads(os.environ.get("ALLOWED_HOSTS"))
+    CORS_ALLOW_CREDENTIALS = json.loads(os.environ.get("CORS_ALLOW_CREDENTIALS"))
+    CORS_ALLOW_HEADERS = json.loads(os.environ.get("CORS_ALLOW_HEADERS"))
