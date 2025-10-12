@@ -177,6 +177,9 @@ LOGGING = {
 # In order to run sonarquebe => we don't actually need CORS related config
 # => ignore those config when ENVIRONMENT == TEST
 if ENVIRONMENT != "TEST":
+    # NOTE: If you are using Chrome, sometime the CORS error appear (I have checked Safari and Brave and no error appears)
+    # Try clearing the cache or disabling CORS preflight cache in Chrome DevTools:
+    # Chrome → DevTools → Network Tab → Disable cache (check box)
     print("Setup CORS settings...")
     CORS_ORIGIN_ALLOW_ALL = json.loads(os.environ.get("CORS_ORIGIN_ALLOW_ALL"))
     CORS_ALLOWED_ORIGINS = json.loads(os.environ.get("FRONTEND_BASE_URL"))
