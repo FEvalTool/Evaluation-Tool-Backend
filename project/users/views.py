@@ -406,7 +406,7 @@ class AuthViewSet(ViewSet):
                 raise CustomUser.DoesNotExist
             # Create token for user
             tokens = {
-                "access_token": create_jwt(
+                "access": create_jwt(
                     {
                         "username": user.username,
                         "name": user.name,
@@ -420,7 +420,6 @@ class AuthViewSet(ViewSet):
                         "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
                     }
                 )
-
             logger.info(
                 {
                     "event_type": EventType.LOGIN,
@@ -430,7 +429,6 @@ class AuthViewSet(ViewSet):
                     "is_security_question_set": user.is_security_question_set,
                 }
             )
-
             return JsonResponse(
                 {
                     "message": "Successfully Login",
@@ -439,18 +437,17 @@ class AuthViewSet(ViewSet):
                     "is_security_question_set": user.is_security_question_set,
                 },
             )
-
         except ValidationError as e:
             logger.error(
                 {
                     "event_type": EventType.LOGIN,
+                    "error_type": ErrorTypes.REQUEST_VALIDATION,
                     "error_content": e.detail,
                 }
             )
             return JsonResponse(
                 {
                     "message": "Invalid request",
-                    "error_type": ErrorTypes.REQUEST_VALIDATION,
                     "error-content": e.detail,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -460,12 +457,12 @@ class AuthViewSet(ViewSet):
                 {
                     "event_type": EventType.LOGIN,
                     "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": "Username or password is incorrect",
+                    "error_content": "Invalid username or password",
                 }
             )
             return JsonResponse(
-                {"message": "Username or password is incorrect"},
-                status=status.HTTP_404_NOT_FOUND,
+                {"message": "Invalid username or password"},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         except Exception as e:
             logger.error(
@@ -530,7 +527,6 @@ class AuthViewSet(ViewSet):
                     raise SecurityQAValidationException(
                         "Security answers aren't correct"
                     )
-
             # Generate security qa verification token
             token = create_jwt(
                 {
@@ -538,7 +534,6 @@ class AuthViewSet(ViewSet):
                     "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
                 }
             )
-
             logger.info(
                 {
                     "event_type": EventType.GENERATE_SECURITY_QA_VERIFICATION_TOKEN,
@@ -546,14 +541,12 @@ class AuthViewSet(ViewSet):
                     "username": username,
                 }
             )
-
             return JsonResponse(
                 {
                     "message": "Successfully retrieve Security QA verification token",
                     "token": token,
                 },
             )
-
         except ValidationError as e:
             logger.error(
                 {
