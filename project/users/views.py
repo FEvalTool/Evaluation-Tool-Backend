@@ -512,14 +512,16 @@ class AuthViewSet(ViewSet):
                 )
             # Verify security question answer
             question_ids = serializer.validated_data["questions"]
-            userQA = UserQuestionAnswer.objects.filter(
+            user_qa = UserQuestionAnswer.objects.filter(
                 user_id=user.id, question_id__in=question_ids
             )
-            if not userQA.count() == len(serializer.validated_data["questions"]):
+            if user_qa.count() != len(serializer.validated_data["questions"]):
                 raise serializers.ValidationError(
                     {"questions": ["User security questions doesn't existed"]}
                 )
-            correct_answers = [userQA.get(question_id=id).answer for id in question_ids]
+            correct_answers = [
+                user_qa.get(question_id=id).answer for id in question_ids
+            ]
             user_answers = serializer.validated_data["answers"]
             for expected, returned in zip(correct_answers, user_answers):
                 if expected != returned:

@@ -1,5 +1,5 @@
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from django.conf import settings
 
 from .exceptions import TokenValidationException
@@ -49,7 +49,7 @@ def create_jwt(data):
     """
     payload = {
         **data,
-        "exp": datetime.utcnow() + timedelta(minutes=settings.EXPIRES_MINUTES),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.EXPIRES_MINUTES),
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 

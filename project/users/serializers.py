@@ -44,7 +44,7 @@ class SetSecurityQASerializer(serializers.Serializer):
             id__in=value, status="Official"
         )
         if len(questions_from_db) != len(value):
-            raise serializers.ValidationError(f"Non-exist questions")
+            raise serializers.ValidationError("Non-exist questions")
         # Reorder the question instances based on question id (value)
         id_to_instance = {q.id: q for q in questions_from_db}
         ordered_questions = [id_to_instance[qid] for qid in value]
