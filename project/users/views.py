@@ -95,10 +95,7 @@ class AccountViewSet(ViewSet):
                 }
             )
             return JsonResponse(
-                {
-                    "message": "Internal server error",
-                    "error-content": "An unexpected error occurred.",
-                },
+                {"message": "Internal server error"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -181,10 +178,7 @@ class AccountViewSet(ViewSet):
                 }
             )
             return JsonResponse(
-                {
-                    "message": "Internal server error",
-                    "error-content": "An unexpected error occurred.",
-                },
+                {"message": "Internal server error"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -287,10 +281,7 @@ class AccountViewSet(ViewSet):
                 }
             )
             return JsonResponse(
-                {
-                    "message": "Internal server error",
-                    "error-content": "An unexpected error occurred.",
-                },
+                {"message": "Internal server error"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -375,6 +366,18 @@ class AccountViewSet(ViewSet):
             return JsonResponse(
                 {"message": f"User with username {username} does not found"},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            logger.error(
+                {
+                    "event_type": EventType.GET_USER_SECURITY_QUESTIONS,
+                    "error_type": ErrorTypes.EXCEPTION,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {"message": "Internal server error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
@@ -473,10 +476,7 @@ class AuthViewSet(ViewSet):
                 }
             )
             return JsonResponse(
-                {
-                    "message": "Internal server error",
-                    "error-content": "An unexpected error occurred.",
-                },
+                {"message": "Internal server error"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -488,7 +488,8 @@ class AuthViewSet(ViewSet):
         try:
             logger.info(
                 {
-                    "event_type": EventType.GENERATE_SECURITY_QA_VERIFICATION_TOKEN,
+                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
                     "message": "Begin generate security qa verification token",
                 }
             )
@@ -500,7 +501,8 @@ class AuthViewSet(ViewSet):
                 # If user has't login to setup for the first time, return error response
                 logger.error(
                     {
-                        "event_type": EventType.GENERATE_SECURITY_QA_VERIFICATION_TOKEN,
+                        "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                        "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
                         "error_type": ErrorTypes.UNAUTHORIZED,
                         "error_content": f"User {username} hasn't setup account",
                         "is_security_question_set": user.is_security_question_set,
@@ -536,21 +538,23 @@ class AuthViewSet(ViewSet):
             )
             logger.info(
                 {
-                    "event_type": EventType.GENERATE_SECURITY_QA_VERIFICATION_TOKEN,
+                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
                     "message": "Get security qa verification token successfully",
                     "username": username,
                 }
             )
             return JsonResponse(
                 {
-                    "message": "Successfully retrieve Security QA verification token",
+                    "message": "Token generated successfully",
                     "token": token,
                 },
             )
         except ValidationError as e:
             logger.error(
                 {
-                    "event_type": EventType.GENERATE_SECURITY_QA_VERIFICATION_TOKEN,
+                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
                     "error_content": e.detail,
                 }
             )
@@ -565,40 +569,40 @@ class AuthViewSet(ViewSet):
         except CustomUser.DoesNotExist:
             logger.error(
                 {
-                    "event_type": EventType.GENERATE_SECURITY_QA_VERIFICATION_TOKEN,
+                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
                     "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": "Username is not existed",
+                    "error_content": "Username not found",
                 }
             )
             return JsonResponse(
-                {"message": "Username is not existed"},
+                {"message": "Username not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except SecurityQAValidationException as e:
             logger.error(
                 {
-                    "event_type": EventType.GENERATE_SECURITY_QA_VERIFICATION_TOKEN,
+                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
                     "error_type": ErrorTypes.SECURITY_QA_VALIDATION,
                     "error_content": str(e),
                 }
             )
             return JsonResponse(
-                {"message": "Security QA validation failed", "error-content": str(e)},
+                {"message": "Security QA validation failed"},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
         except Exception as e:
             logger.error(
                 {
-                    "event_type": EventType.LOGIN,
+                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
                     "error_type": ErrorTypes.EXCEPTION,
                     "error_content": str(e),
                 }
             )
             return JsonResponse(
-                {
-                    "message": "Internal server error",
-                    "error-content": "An unexpected error occurred.",
-                },
+                {"message": "Internal server error"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -610,7 +614,8 @@ class AuthViewSet(ViewSet):
         try:
             logger.info(
                 {
-                    "event_type": EventType.GENERATE_PASSWORD_VERIFICATION_TOKEN,
+                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                    "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
                     "message": "Begin generate password verification token",
                 }
             )
@@ -622,7 +627,8 @@ class AuthViewSet(ViewSet):
                 # If user has't login to setup for the first time, return error response
                 logger.error(
                     {
-                        "event_type": EventType.GENERATE_PASSWORD_VERIFICATION_TOKEN,
+                        "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                        "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
                         "error_type": ErrorTypes.UNAUTHORIZED,
                         "error_content": f"User {username} hasn't setup account",
                         "is_security_question_set": user.is_security_question_set,
@@ -633,11 +639,9 @@ class AuthViewSet(ViewSet):
                     {"message": f"User {username} hasn't setup account"},
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
-
             # Validate password
             if not user.check_password(serializer.validated_data["password"]):
                 raise CustomUser.DoesNotExist
-
             # Generate password verification token
             token = create_jwt(
                 {
@@ -645,26 +649,25 @@ class AuthViewSet(ViewSet):
                     "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
                 }
             )
-
             logger.info(
                 {
-                    "event_type": EventType.GENERATE_PASSWORD_VERIFICATION_TOKEN,
+                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                    "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
                     "message": "Get password verification token successfully",
                     "username": username,
                 }
             )
-
             return JsonResponse(
                 {
-                    "message": "Successfully retrieve password verification token",
+                    "message": "Token generated successfully",
                     "token": token,
                 },
             )
-
         except ValidationError as e:
             logger.error(
                 {
-                    "event_type": EventType.GENERATE_PASSWORD_VERIFICATION_TOKEN,
+                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                    "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
                     "error_content": e.detail,
                 }
             )
@@ -679,27 +682,26 @@ class AuthViewSet(ViewSet):
         except CustomUser.DoesNotExist:
             logger.error(
                 {
-                    "event_type": EventType.GENERATE_PASSWORD_VERIFICATION_TOKEN,
+                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                    "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
                     "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": "Username is not existed",
+                    "error_content": "Invalid username or password",
                 }
             )
             return JsonResponse(
-                {"message": "Username is not existed"},
-                status=status.HTTP_404_NOT_FOUND,
+                {"message": "Invalid username or password"},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         except Exception as e:
             logger.error(
                 {
-                    "event_type": EventType.GENERATE_PASSWORD_VERIFICATION_TOKEN,
+                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                    "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
                     "error_type": ErrorTypes.EXCEPTION,
                     "error_content": str(e),
                 }
             )
             return JsonResponse(
-                {
-                    "message": "Internal server error",
-                    "error-content": "An unexpected error occurred.",
-                },
+                {"message": "Internal server error"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
