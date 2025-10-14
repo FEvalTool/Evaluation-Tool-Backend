@@ -1,5 +1,8 @@
 name: "sonar_scan"
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -39,6 +42,7 @@ jobs:
         SQL_PASSWORD: zergling
         SQL_HOST: 127.0.0.1
         SQL_PORT: 3306
+        ENVIRONMENT: TEST
     - name: Run SonarCloud Scanner
       uses: SonarSource/sonarqube-scan-action@v4.2.1
       env:

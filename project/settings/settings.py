@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import json
 import os
 import environ
 
@@ -39,12 +40,15 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "temps",
+    "corsheaders",
+    "common",
+    "users",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -132,3 +136,54 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+AUTH_USER_MODEL = "users.CustomUser"
+
+# Implement environment
+ENVIRONMENT = os.environ.get("ENVIRONMENT")
+
+# Customize the Token Timelines
+ALGORITHM = "HS256"
+EXPIRES_MINUTES = 60
+
+# Set up Logging
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "__main__": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+    },
+}
+
+# Set CORS settings
+# In order to run sonarquebe => we don't actually need CORS related config
+# => ignore those config when ENVIRONMENT == TEST
+if ENVIRONMENT != "TEST":
+    # NOTE: If you are using Chrome, sometime the CORS error appear (I have checked Safari and Brave and no error appears)
+    # Try clearing the cache or disabling CORS preflight cache in Chrome DevTools:
+    # Chrome → DevTools → Network Tab → Disable cache (check box)
+    print("Setup CORS settings...")
+    CORS_ORIGIN_ALLOW_ALL = json.loads(os.environ.get("CORS_ORIGIN_ALLOW_ALL"))
+    CORS_ALLOWED_ORIGINS = json.loads(os.environ.get("FRONTEND_BASE_URL"))
+    CORS_ALLOW_METHODS = json.loads(os.environ.get("CORS_ALLOW_METHODS"))
+    ALLOWED_HOSTS = json.loads(os.environ.get("ALLOWED_HOSTS"))
+    CORS_ALLOW_CREDENTIALS = json.loads(os.environ.get("CORS_ALLOW_CREDENTIALS"))
+    CORS_ALLOW_HEADERS = json.loads(os.environ.get("CORS_ALLOW_HEADERS"))
