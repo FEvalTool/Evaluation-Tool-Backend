@@ -42,11 +42,15 @@ def create_security_questions():
         {"content": "What is your mother's maiden name?", "status": "Official"},
         {"content": "What is your pet's name?", "status": "Official"},
         {"content": "What was the name of your first school?", "status": "Official"},
+        {
+            "content": "What was your favorite spot in your hometown?",
+            "status": "Unofficial",
+        },
     ]
     SecurityQuestion.objects.bulk_create(
         [SecurityQuestion(**data) for data in question_list]
     )
-    return list(SecurityQuestion.objects.all().order_by("content"))
+    return SecurityQuestion.objects.all().order_by("content")
 
 
 def create_user_question_answers(user, questions):
@@ -62,6 +66,7 @@ def create_user_question_answers(user, questions):
 
 
 def setup_mock_accounts():
+    """Setup mock accounts for testing."""
     _, normal_user = create_test_users()
-    security_questions = create_security_questions()
+    security_questions = list(create_security_questions())
     create_user_question_answers(normal_user, security_questions)
