@@ -15,6 +15,7 @@ class UserValidators:
         message="Identity number must be entered in the Vietnamese identity nuber format.",
     )
 
-    def password_validator(self, password):
+    @staticmethod
+    def password_validator(password):
         if re.search(PASSWORD_FORMAT, password) is None:
             raise serializers.ValidationError("Incorrect password format")
