@@ -4,9 +4,9 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from users.models import CustomUser, SecurityQuestion, UserQuestionAnswer
 from users.utils import create_jwt
 from users.constants import TokenScope
+from tests.test_utils.setup_mock_accounts import setup_mock_accounts
 
 
 class AccountViewsTestCase(TestCase):
@@ -26,65 +26,7 @@ class AccountViewsTestCase(TestCase):
         }
 
         # Set up a user in the database for set password tests,
-        user_info_list = [
-            {
-                "username": "testuser",
-                "name": "Test User",
-                "phone_number": "0123456789",
-                "dob": "1990-01-01",
-                "identity_number": "123456789012",
-            },
-            {
-                "username": "testuser1",
-                "name": "Test User 1",
-                "phone_number": "0987654321",
-                "dob": "2000-01-01",
-                "identity_number": "123456789999",
-                "is_default_password": False,
-                "is_security_question_set": True,
-            },
-        ]
-
-        first_time_setup_user = CustomUser(**user_info_list[0])
-        first_time_setup_user.set_password("correctpassword")
-        normal_user = CustomUser(**user_info_list[1])
-        normal_user.set_password("cORRectPassw0rd!")
-        first_time_setup_user.save()
-        normal_user.save()
-
-        question_list = [
-            {"content": "What is your mother's maiden name?", "status": "Official"},
-            {"content": "What is your pet's name?", "status": "Official"},
-            {
-                "content": "What was the name of your first school?",
-                "status": "Official",
-            },
-        ]
-        SecurityQuestion.objects.bulk_create(
-            [SecurityQuestion(**data) for data in question_list]
-        )
-        question_instances = SecurityQuestion.objects.all().order_by("content")
-
-        answer_list = [
-            {
-                "user": normal_user,
-                "question": question_instances[0],
-                "answer": "Smith",
-            },
-            {
-                "user": normal_user,
-                "question": question_instances[1],
-                "answer": "Fluffy",
-            },
-            {
-                "user": normal_user,
-                "question": question_instances[2],
-                "answer": "Greenwood",
-            },
-        ]
-        UserQuestionAnswer.objects.bulk_create(
-            [UserQuestionAnswer(**data) for data in answer_list]
-        )
+        setup_mock_accounts()
 
     def test_create_account_success(self):
         response = self.client.post(self.account_url, self.user_info)
