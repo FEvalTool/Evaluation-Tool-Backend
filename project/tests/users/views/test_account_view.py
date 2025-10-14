@@ -6,7 +6,7 @@ from rest_framework.test import APIClient
 
 from users.utils import create_jwt
 from users.constants import TokenScope
-from tests.test_utils.setup_mock_accounts import setup_mock_accounts
+from tests.helpers.setup_mock_accounts import setup_mock_accounts
 
 
 class AccountViewsTestCase(TestCase):

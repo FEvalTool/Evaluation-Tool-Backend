@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from users.models import UserQuestionAnswer
-from tests.test_utils.setup_mock_accounts import setup_mock_accounts
+from tests.helpers.setup_mock_accounts import setup_mock_accounts
 
 
 class AuthViewsTestCase(TestCase):

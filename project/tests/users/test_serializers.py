@@ -4,7 +4,7 @@ from users.serializers import (
     SetSecurityQASerializer,
     GetSecurityQAVerificationTokenSerializer,
 )
-from tests.test_utils.setup_mock_accounts import create_security_questions
+from tests.helpers.setup_mock_accounts import create_security_questions
 
 
 class SetSecurityQASerializerTest(TestCase):
