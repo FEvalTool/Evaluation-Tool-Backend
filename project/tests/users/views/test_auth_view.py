@@ -128,8 +128,8 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Invalid request")
-        self.assertIn("error-content", response.json())
-        self.assertIn("password", response.json()["error-content"])
+        self.assertIn("error_content", response.json())
+        self.assertIn("password", response.json()["error_content"])
 
     @mock.patch("users.views.create_jwt")
     def test_login_internal_server_error(self, mock_create_jwt):
@@ -143,6 +143,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Internal server error")
+        self.assertIn("error_content", response.json())
 
     def test_generate_qa_verification_token_success(self):
         questions_answers = UserQuestionAnswer.objects.all()
@@ -230,7 +231,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Invalid request")
-        self.assertIn("error-content", response.json())
+        self.assertIn("error_content", response.json())
 
     @mock.patch("users.views.create_jwt")
     def test_generate_qa_verification_token_internal_server_error(
@@ -253,6 +254,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Internal server error")
+        self.assertIn("error_content", response.json())
 
     def test_generate_password_verification_token_success(self):
         response = self.client.post(
@@ -302,7 +304,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Invalid request")
-        self.assertIn("error-content", response.json())
+        self.assertIn("error_content", response.json())
 
     @mock.patch("users.views.create_jwt")
     def test_generate_password_verification_token_internal_server_error(
@@ -318,3 +320,4 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Internal server error")
+        self.assertIn("error_content", response.json())

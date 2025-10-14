@@ -82,7 +82,7 @@ class AccountViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Invalid request",
-                    "error-content": e.detail,
+                    "error_content": e.detail,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -95,7 +95,7 @@ class AccountViewSet(ViewSet):
                 }
             )
             return JsonResponse(
-                {"message": "Internal server error"},
+                {"message": "Internal server error", "error_content": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -141,7 +141,7 @@ class AccountViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Invalid request",
-                    "error-content": e.detail,
+                    "error_content": e.detail,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -154,7 +154,7 @@ class AccountViewSet(ViewSet):
                 }
             )
             return JsonResponse(
-                {"message": "Token validation failed", "error-content": str(e)},
+                {"message": "Token validation failed", "error_content": str(e)},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
         except CustomUser.DoesNotExist:
@@ -178,7 +178,7 @@ class AccountViewSet(ViewSet):
                 }
             )
             return JsonResponse(
-                {"message": "Internal server error"},
+                {"message": "Internal server error", "error_content": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -244,7 +244,7 @@ class AccountViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Invalid request",
-                    "error-content": e.detail,
+                    "error_content": e.detail,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -257,7 +257,7 @@ class AccountViewSet(ViewSet):
                 }
             )
             return JsonResponse(
-                {"message": "Token validation failed", "error-content": str(e)},
+                {"message": "Token validation failed", "error_content": str(e)},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
         except CustomUser.DoesNotExist:
@@ -281,7 +281,7 @@ class AccountViewSet(ViewSet):
                 }
             )
             return JsonResponse(
-                {"message": "Internal server error"},
+                {"message": "Internal server error", "error_content": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -351,7 +351,7 @@ class AccountViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Invalid request",
-                    "error-content": e.detail,
+                    "error_content": e.detail,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -376,7 +376,7 @@ class AccountViewSet(ViewSet):
                 }
             )
             return JsonResponse(
-                {"message": "Internal server error"},
+                {"message": "Internal server error", "error_content": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -451,7 +451,7 @@ class AuthViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Invalid request",
-                    "error-content": e.detail,
+                    "error_content": e.detail,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -476,7 +476,7 @@ class AuthViewSet(ViewSet):
                 }
             )
             return JsonResponse(
-                {"message": "Internal server error"},
+                {"message": "Internal server error", "error_content": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -562,7 +562,7 @@ class AuthViewSet(ViewSet):
                 {
                     "message": "Invalid request",
                     "error_type": ErrorTypes.REQUEST_VALIDATION,
-                    "error-content": e.detail,
+                    "error_content": e.detail,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -602,7 +602,7 @@ class AuthViewSet(ViewSet):
                 }
             )
             return JsonResponse(
-                {"message": "Internal server error"},
+                {"message": "Internal server error", "error_content": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -675,7 +675,7 @@ class AuthViewSet(ViewSet):
                 {
                     "message": "Invalid request",
                     "error_type": ErrorTypes.REQUEST_VALIDATION,
-                    "error-content": e.detail,
+                    "error_content": e.detail,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -702,6 +702,6 @@ class AuthViewSet(ViewSet):
                 }
             )
             return JsonResponse(
-                {"message": "Internal server error"},
+                {"message": "Internal server error", "error_content": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
