@@ -54,7 +54,7 @@ def create_jwt(data):
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def decode_and_verify_jwt(token, verify_function):
+def decode_and_verify_jwt(token, verify_function=None):
     """
     Decode and verify jwt
 
@@ -72,7 +72,8 @@ def decode_and_verify_jwt(token, verify_function):
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
-        verify_function(payload)
+        if verify_function:
+            verify_function(payload)
         return payload
     except jwt.ExpiredSignatureError:
         raise TokenValidationException("Token expired")

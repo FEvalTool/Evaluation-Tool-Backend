@@ -14,8 +14,8 @@ from ..serializers import (
 )
 from common.constants import ErrorTypes
 from ..constants import EventType, TokenScope
-from ..exceptions import SecurityQAValidationException
-from ..utils import create_jwt
+from ..exceptions import SecurityQAValidationException, TokenValidationException
+from ..utils import create_jwt, decode_and_verify_jwt
 
 logger = logging.getLogger(__name__)
 
@@ -338,6 +338,72 @@ class AuthViewSet(ViewSet):
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
                     "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
+                    "error_type": ErrorTypes.EXCEPTION,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {"message": "Internal server error", "error_content": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=False, methods=["post"], url_path="token/verify")
+    def verify_token(self, request):
+        """
+        Endpoint to verify token validity
+        """
+        try:
+            token = request.data.get("token", None)
+            if not token:
+                raise serializers.ValidationError(
+                    {"token": ["This field is required."]}
+                )
+            # Decode and verify token
+            payload = decode_and_verify_jwt(token, None)
+            logger.info(
+                {
+                    "event_type": EventType.VERIFY_TOKEN,
+                    "message": "Token is valid",
+                    "username": payload.get("username", None),
+                }
+            )
+            return JsonResponse(
+                {
+                    "message": "Token is valid",
+                    "payload": payload,
+                },
+            )
+        except ValidationError as e:
+            logger.error(
+                {
+                    "event_type": EventType.VERIFY_TOKEN,
+                    "error_type": ErrorTypes.REQUEST_VALIDATION,
+                    "error_content": e.detail,
+                }
+            )
+            return JsonResponse(
+                {
+                    "message": "Invalid request",
+                    "error_content": e.detail,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except TokenValidationException as e:
+            logger.error(
+                {
+                    "event_type": EventType.VERIFY_TOKEN,
+                    "error_type": ErrorTypes.TOKEN_VALIDATION,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {"message": "Invalid token", "error_content": str(e)},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        except Exception as e:
+            logger.error(
+                {
+                    "event_type": EventType.VERIFY_TOKEN,
                     "error_type": ErrorTypes.EXCEPTION,
                     "error_content": str(e),
                 }
