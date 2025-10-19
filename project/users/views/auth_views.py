@@ -47,19 +47,18 @@ class AuthViewSet(ViewSet):
             if not user.check_password(serializer.validated_data["password"]):
                 raise CustomUser.DoesNotExist
             # Create token for user
-            tokens = {
-                "access": create_jwt(
-                    {
-                        "username": user.username,
-                        "name": user.name,
-                    }
-                )
-            }
             if user.is_default_password or not user.is_security_question_set:
-                tokens["password_verification"] = create_jwt(
+                token = create_jwt(
                     {
                         "username": user.username,
                         "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
+                    }
+                )
+            else:
+                token = create_jwt(
+                    {
+                        "username": user.username,
+                        "name": user.name,
                     }
                 )
             logger.info(
@@ -74,7 +73,7 @@ class AuthViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Successfully Login",
-                    "tokens": tokens,
+                    "token": token,
                     "is_default_password": user.is_default_password,
                     "is_security_question_set": user.is_security_question_set,
                 },

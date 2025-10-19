@@ -30,9 +30,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()["is_default_password"], True)
         self.assertEqual(response.json()["is_security_question_set"], False)
-        self.assertIn("tokens", response.json())
-        self.assertIn("access", response.json()["tokens"])
-        self.assertIn("password_verification", response.json()["tokens"])
+        self.assertIn("token", response.json())
 
     def test_login_success_normal_user(self):
         response = self.client.post(
@@ -44,9 +42,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()["is_default_password"], False)
         self.assertEqual(response.json()["is_security_question_set"], True)
-        self.assertIn("tokens", response.json())
-        self.assertIn("access", response.json()["tokens"])
-        self.assertNotIn("password_verification", response.json()["tokens"])
+        self.assertIn("token", response.json())
 
     def test_login_failure_wrong_password(self):
         response = self.client.post(
