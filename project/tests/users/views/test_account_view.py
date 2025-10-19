@@ -49,7 +49,7 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(response.json()["message"], "Invalid request")
         self.assertIn("error_content", response.json())
 
-    @mock.patch("users.views.generate_username")
+    @mock.patch("users.views.account_views.generate_username")
     def test_create_account_internal_server_error(self, mock_generate_username):
         mock_generate_username.side_effect = Exception("Unexpected error")
 
@@ -107,7 +107,7 @@ class AccountViewsTestCase(TestCase):
             response.json()["message"], "User with username unknownuser is not existed"
         )
 
-    @mock.patch("users.views.decode_and_verify_jwt")
+    @mock.patch("users.views.account_views.decode_and_verify_jwt")
     def test_set_password_internal_server_error(self, mock_decode_and_verify_jwt):
         mock_decode_and_verify_jwt.side_effect = Exception("Unexpected error")
         token = create_jwt(
@@ -168,7 +168,7 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(response.json()["message"], "Invalid request")
         self.assertIn("error_content", response.json())
 
-    @mock.patch("users.views.CustomUser.objects.get")
+    @mock.patch("users.views.account_views.CustomUser.objects.get")
     def test_get_user_security_questions_internal_server_error(self, mock_get_user):
         mock_get_user.side_effect = Exception("Unexpected error")
         response = self.client.get(

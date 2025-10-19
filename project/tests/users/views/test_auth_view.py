@@ -74,7 +74,7 @@ class AuthViewsTestCase(TestCase):
         self.assertIn("error_content", response.json())
         self.assertIn("password", response.json()["error_content"])
 
-    @mock.patch("users.views.create_jwt")
+    @mock.patch("users.views.auth_views.create_jwt")
     def test_login_internal_server_error(self, mock_create_jwt):
         mock_create_jwt.side_effect = Exception("JWT creation failed")
         response = self.client.post(
@@ -176,7 +176,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.json()["message"], "Invalid request")
         self.assertIn("error_content", response.json())
 
-    @mock.patch("users.views.create_jwt")
+    @mock.patch("users.views.auth_views.create_jwt")
     def test_generate_qa_verification_token_internal_server_error(
         self, mock_create_jwt
     ):
@@ -249,7 +249,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.json()["message"], "Invalid request")
         self.assertIn("error_content", response.json())
 
-    @mock.patch("users.views.create_jwt")
+    @mock.patch("users.views.auth_views.create_jwt")
     def test_generate_password_verification_token_internal_server_error(
         self, mock_create_jwt
     ):
