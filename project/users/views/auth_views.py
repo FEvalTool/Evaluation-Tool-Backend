@@ -1,11 +1,16 @@
-from django.http import JsonResponse
+import logging
 
+from django.http import JsonResponse
 from rest_framework import status, serializers
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-
-import logging
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.serializers import (
+    TokenVerifySerializer,
+    TokenRefreshSerializer,
+)
+from rest_framework_simplejwt.exceptions import TokenError
 
 from ..models import CustomUser, UserQuestionAnswer
 from ..serializers import (
@@ -14,8 +19,8 @@ from ..serializers import (
 )
 from common.constants import ErrorTypes
 from ..constants import EventType, TokenScope
-from ..exceptions import SecurityQAValidationException, TokenValidationException
-from ..utils import create_jwt, decode_and_verify_jwt
+from ..exceptions import SecurityQAValidationException
+from ..custom_token import ScopeToken
 
 logger = logging.getLogger(__name__)
 
@@ -47,20 +52,16 @@ class AuthViewSet(ViewSet):
             if not user.check_password(serializer.validated_data["password"]):
                 raise CustomUser.DoesNotExist
             # Create token for user
+            refresh_token = None
             if user.is_default_password or not user.is_security_question_set:
-                token = create_jwt(
-                    {
-                        "username": user.username,
-                        "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
-                    }
+                # When user login for the first time, create scope jwt token
+                access_token = str(
+                    ScopeToken.for_user(user, TokenScope.PASSWORD_VERIFY_SCOPE)
                 )
             else:
-                token = create_jwt(
-                    {
-                        "username": user.username,
-                        "name": user.name,
-                    }
-                )
+                refresh = RefreshToken.for_user(user)
+                access_token = str(refresh.access_token)
+                refresh_token = str(refresh)
             logger.info(
                 {
                     "event_type": EventType.LOGIN,
@@ -73,7 +74,8 @@ class AuthViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Successfully Login",
-                    "token": token,
+                    "token": access_token,
+                    "refresh": refresh_token,
                     "is_default_password": user.is_default_password,
                     "is_security_question_set": user.is_security_question_set,
                 },
@@ -170,11 +172,8 @@ class AuthViewSet(ViewSet):
                         "Security answers aren't correct"
                     )
             # Generate security qa verification token
-            token = create_jwt(
-                {
-                    "username": username,
-                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
-                }
+            token = str(
+                ScopeToken.for_user(user, TokenScope.SECURITY_QUESTION_VERIFY_SCOPE)
             )
             logger.info(
                 {
@@ -283,12 +282,7 @@ class AuthViewSet(ViewSet):
             if not user.check_password(serializer.validated_data["password"]):
                 raise CustomUser.DoesNotExist
             # Generate password verification token
-            token = create_jwt(
-                {
-                    "username": username,
-                    "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
-                }
-            )
+            token = str(ScopeToken.for_user(user, TokenScope.PASSWORD_VERIFY_SCOPE))
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
@@ -349,27 +343,26 @@ class AuthViewSet(ViewSet):
     @action(detail=False, methods=["post"], url_path="token/verify")
     def verify_token(self, request):
         """
-        Endpoint to verify token validity
+        Endpoint to verify custom token validity
         """
         try:
-            token = request.data.get("token", None)
-            if not token:
-                raise serializers.ValidationError(
-                    {"token": ["This field is required."]}
-                )
-            # Decode and verify token
-            payload = decode_and_verify_jwt(token, None)
+            logger.info(
+                {
+                    "event_type": EventType.VERIFY_TOKEN,
+                    "message": "Begin verify token",
+                }
+            )
+            serializer = TokenVerifySerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
             logger.info(
                 {
                     "event_type": EventType.VERIFY_TOKEN,
                     "message": "Token is valid",
-                    "username": payload.get("username", None),
                 }
             )
             return JsonResponse(
                 {
                     "message": "Token is valid",
-                    "payload": payload,
                 },
             )
         except ValidationError as e:
@@ -387,7 +380,7 @@ class AuthViewSet(ViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except TokenValidationException as e:
+        except TokenError as e:
             logger.error(
                 {
                     "event_type": EventType.VERIFY_TOKEN,
@@ -403,6 +396,72 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.VERIFY_TOKEN,
+                    "error_type": ErrorTypes.EXCEPTION,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {"message": "Internal server error", "error_content": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=False, methods=["post"], url_path="token/refresh")
+    def refresh_token(self, request):
+        """
+        Endpoint to refresh access token using refresh token
+        """
+        try:
+            logger.info(
+                {
+                    "event_type": EventType.REFRESH_TOKEN,
+                    "message": "Begin refresh access token",
+                }
+            )
+            serializer = TokenRefreshSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            logger.info(
+                {
+                    "event_type": EventType.REFRESH_TOKEN,
+                    "message": "Token is refreshed",
+                }
+            )
+            return JsonResponse(
+                {
+                    "message": "Refresh token successful",
+                    "access": serializer.validated_data["access"],
+                },
+            )
+        except ValidationError as e:
+            logger.error(
+                {
+                    "event_type": EventType.REFRESH_TOKEN,
+                    "error_type": ErrorTypes.REQUEST_VALIDATION,
+                    "error_content": e.detail,
+                }
+            )
+            return JsonResponse(
+                {
+                    "message": "Invalid request",
+                    "error_content": e.detail,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except TokenError as e:
+            logger.error(
+                {
+                    "event_type": EventType.REFRESH_TOKEN,
+                    "error_type": ErrorTypes.TOKEN_VALIDATION,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {"message": "Invalid token", "error_content": str(e)},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        except Exception as e:
+            logger.error(
+                {
+                    "event_type": EventType.REFRESH_TOKEN,
                     "error_type": ErrorTypes.EXCEPTION,
                     "error_content": str(e),
                 }

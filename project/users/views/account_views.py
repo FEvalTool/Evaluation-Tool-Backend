@@ -1,12 +1,12 @@
+import logging
+
 from django.http import JsonResponse
 from django.utils.crypto import get_random_string
-
 from rest_framework import status
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-
-import logging
+from rest_framework_simplejwt.exceptions import TokenError
 
 from ..models import CustomUser, UserQuestionAnswer
 from ..serializers import (
@@ -15,13 +15,9 @@ from ..serializers import (
     GetSecurityQuestionParamsSerializer,
 )
 from common.constants import ErrorTypes
-from ..constants import EventType
-from ..exceptions import TokenValidationException
-from ..utils import (
-    generate_username,
-    decode_and_verify_jwt,
-    verify_is_able_to_set_password,
-)
+from ..constants import EventType, TokenScope
+from ..utils import generate_username
+from ..custom_token import ScopeToken
 
 logger = logging.getLogger(__name__)
 
@@ -107,10 +103,14 @@ class AccountViewSet(ViewSet):
             )
             serializer = SetPasswordSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-            payload = decode_and_verify_jwt(
-                serializer.validated_data["token"], verify_is_able_to_set_password
+            payload = ScopeToken(serializer.validated_data["token"])
+            payload.verify_scope(
+                [
+                    TokenScope.PASSWORD_VERIFY_SCOPE,
+                    TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
+                ]
             )
-            user = CustomUser.objects.get(username=payload["username"])
+            user = CustomUser.objects.get(id=payload.get("user_id"))
             user.set_password(serializer.validated_data["password"])
             if user.is_default_password:
                 # If user change the password for the first time, set this flag to false
@@ -119,11 +119,11 @@ class AccountViewSet(ViewSet):
             logger.info(
                 {
                     "event_type": EventType.SET_PASSWORD,
+                    "user_id": payload.get["user_id"],
                     "message": "Set new password success",
                 }
             )
             return JsonResponse({"message": "Successfully set new password"})
-
         except ValidationError as e:
             logger.error(
                 {
@@ -139,7 +139,7 @@ class AccountViewSet(ViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except TokenValidationException as e:
+        except TokenError as e:
             logger.error(
                 {
                     "event_type": EventType.SET_PASSWORD,

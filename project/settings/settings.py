@@ -14,6 +14,7 @@ from pathlib import Path
 import json
 import os
 import environ
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -142,10 +143,6 @@ AUTH_USER_MODEL = "users.CustomUser"
 # Implement environment
 ENVIRONMENT = os.environ.get("ENVIRONMENT")
 
-# Customize the Token Timelines
-ALGORITHM = "HS256"
-EXPIRES_MINUTES = 60
-
 # Set up Logging
 LOGGING = {
     "version": 1,
@@ -172,6 +169,11 @@ LOGGING = {
         },
     },
 }
+
+# Customize the Token Timelines
+SCOPE_TOKEN_LIFETIME_MINUTES = timedelta(
+    minutes=int(os.environ.get("SCOPE_TOKEN_LIFETIME_MINUTES"))
+)
 
 # Set CORS settings
 # In order to run sonarquebe => we don't actually need CORS related config
