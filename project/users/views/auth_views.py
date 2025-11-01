@@ -1,7 +1,8 @@
 import logging
 
 from django.http import JsonResponse
-from rest_framework import status, serializers
+from django.conf import settings
+from rest_framework import status, serializers, response
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -10,6 +11,7 @@ from rest_framework_simplejwt.serializers import (
     TokenVerifySerializer,
     TokenRefreshSerializer,
 )
+from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.exceptions import TokenError
 
 from ..models import CustomUser, UserQuestionAnswer
@@ -51,17 +53,43 @@ class AuthViewSet(ViewSet):
             # Validate password
             if not user.check_password(serializer.validated_data["password"]):
                 raise CustomUser.DoesNotExist
-            # Create token for user
-            refresh_token = None
+            res = response.Response()
+            response_data = {"message": "Successfully Login"}
+            # Create and store token in cookie
             if user.is_default_password or not user.is_security_question_set:
                 # When user login for the first time, create scope jwt token
-                access_token = str(
-                    ScopeToken.for_user(user, TokenScope.PASSWORD_VERIFY_SCOPE)
+                scope_token = ScopeToken.for_user(
+                    user, TokenScope.PASSWORD_VERIFY_SCOPE
                 )
+                res.set_cookie(
+                    key=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
+                    value=str(scope_token),
+                    max_age=api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
+                    secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
+                    httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
+                    samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
+                )
+                response_data["first_time_setup"] = True
+                response_data["is_password_setup"] = not user.is_default_password
+                response_data["is_security_qa_setup"] = user.is_security_question_set
             else:
                 refresh = RefreshToken.for_user(user)
-                access_token = str(refresh.access_token)
-                refresh_token = str(refresh)
+                res.set_cookie(
+                    key=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
+                    value=str(refresh.access_token),
+                    max_age=api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
+                    secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
+                    httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
+                    samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
+                )
+                res.set_cookie(
+                    key=settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"],
+                    value=str(refresh),
+                    max_age=api_settings.REFRESH_TOKEN_LIFETIME.total_seconds(),
+                    secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
+                    httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
+                    samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
+                )
             logger.info(
                 {
                     "event_type": EventType.LOGIN,
@@ -71,15 +99,8 @@ class AuthViewSet(ViewSet):
                     "is_security_question_set": user.is_security_question_set,
                 }
             )
-            return JsonResponse(
-                {
-                    "message": "Successfully Login",
-                    "token": access_token,
-                    "refresh": refresh_token,
-                    "is_default_password": user.is_default_password,
-                    "is_security_question_set": user.is_security_question_set,
-                },
-            )
+            res.data = response_data
+            return res
         except ValidationError as e:
             logger.error(
                 {
@@ -343,7 +364,7 @@ class AuthViewSet(ViewSet):
     @action(detail=False, methods=["post"], url_path="token/verify")
     def verify_token(self, request):
         """
-        Endpoint to verify custom token validity
+        Endpoint to verify access token validity in cookie
         """
         try:
             logger.info(
@@ -352,7 +373,21 @@ class AuthViewSet(ViewSet):
                     "message": "Begin verify token",
                 }
             )
-            serializer = TokenVerifySerializer(data=request.data)
+            access_token = request.COOKIES.get(
+                settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]
+            )
+            if not access_token:
+                logger.error(
+                    {
+                        "event_type": EventType.VERIFY_TOKEN,
+                        "message": "No access token in cookies",
+                    }
+                )
+                return JsonResponse(
+                    {"message": "No access token found"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            serializer = TokenVerifySerializer(data={"token": access_token})
             serializer.is_valid(raise_exception=True)
             logger.info(
                 {
@@ -417,7 +452,19 @@ class AuthViewSet(ViewSet):
                     "message": "Begin refresh access token",
                 }
             )
-            serializer = TokenRefreshSerializer(data=request.data)
+            token = request.COOKIES.get(settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"])
+            if not token:
+                logger.error(
+                    {
+                        "event_type": EventType.REFRESH_TOKEN,
+                        "message": "No refresh token in cookies",
+                    }
+                )
+                return JsonResponse(
+                    {"message": "No refresh token found"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            serializer = TokenRefreshSerializer(data={"refresh": token})
             serializer.is_valid(raise_exception=True)
             logger.info(
                 {
@@ -425,12 +472,18 @@ class AuthViewSet(ViewSet):
                     "message": "Token is refreshed",
                 }
             )
-            return JsonResponse(
-                {
-                    "message": "Refresh token successful",
-                    "access": serializer.validated_data["access"],
-                },
-            )
+            res = response.Response()
+            response_data = {"message": "Refresh token successful"}
+            res.set_cookie(
+                    key=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
+                    value=serializer.validated_data["access"],
+                    max_age=api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
+                    secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
+                    httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
+                    samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
+                )
+            res.data = response_data
+            return res
         except ValidationError as e:
             logger.error(
                 {

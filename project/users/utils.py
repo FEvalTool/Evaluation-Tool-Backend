@@ -1,3 +1,4 @@
+from django.conf import settings
 from .models import CustomUser
 
 
@@ -26,3 +27,19 @@ def generate_username(name):
     users = CustomUser.objects.filter(username__regex=username_pattern)
     # Return username with index
     return f"{prefix_username}{len(users)+1}"
+
+
+def get_token_from_request(request):
+    """
+    Extract token from Authorization header or cookie for password and security QA setup
+    Priority: header > cookie
+    """
+    # Header check
+    auth_header = request.META.get("HTTP_AUTHORIZATION")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header.split("Bearer ")[1]
+    # Cookie check (for browser-based setup)
+    cookie_token = request.COOKIES.get(settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"])
+    if cookie_token:
+        return cookie_token
+    return None

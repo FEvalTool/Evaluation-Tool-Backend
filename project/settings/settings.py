@@ -175,6 +175,28 @@ SCOPE_TOKEN_LIFETIME_MINUTES = timedelta(
     minutes=int(os.environ.get("SCOPE_TOKEN_LIFETIME_MINUTES"))
 )
 
+# Cookie Settings
+COOKIE_SETTINGS = {
+    # Custom attributes: Cookie name
+    "AUTH_COOKIE_ACCESS": os.environ.get("AUTH_COOKIE_ACCESS"),
+    "AUTH_COOKIE_REFRESH": os.environ.get("AUTH_COOKIE_REFRESH"),
+    # Custom attributes: A string like "example.com", or None for standard domain cookie.
+    "AUTH_COOKIE_DOMAIN": (
+        None
+        if os.environ.get("AUTH_COOKIE_DOMAIN") == ""
+        else os.environ.get("AUTH_COOKIE_DOMAIN")
+    ),
+    # Custom attributes: Whether the auth cookies should be secure (https:// only).
+    "AUTH_COOKIE_SECURE": os.environ.get("AUTH_COOKIE_SECURE"),
+    # Custom attributes: Http only cookie flag.It's not fetch by javascript.
+    "AUTH_COOKIE_HTTP_ONLY": os.environ.get("AUTH_COOKIE_HTTP_ONLY"),
+    # Custom attributes: The path of the auth cookie.
+    "AUTH_COOKIE_PATH": os.environ.get("AUTH_COOKIE_PATH"),
+    # Custom attributes: Whether to set the flag restricting cookie leaks on cross-site requests.
+    # This can be 'Lax', 'Strict', or None to disable the flag.
+    "AUTH_COOKIE_SAMESITE": os.environ.get("AUTH_COOKIE_SAMESITE"),
+}
+
 # Set CORS settings
 # In order to run sonarquebe => we don't actually need CORS related config
 # => ignore those config when ENVIRONMENT == TEST

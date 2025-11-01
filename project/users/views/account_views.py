@@ -16,7 +16,7 @@ from ..serializers import (
 )
 from common.constants import ErrorTypes
 from ..constants import EventType, TokenScope
-from ..utils import generate_username
+from ..utils import generate_username, get_token_from_request
 from ..custom_token import ScopeToken
 
 logger = logging.getLogger(__name__)
@@ -101,15 +101,19 @@ class AccountViewSet(ViewSet):
                     "message": "Begin set new password process",
                 }
             )
-            serializer = SetPasswordSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            payload = ScopeToken(serializer.validated_data["token"])
+            # Extract token from request and verify scope
+            token = get_token_from_request(request)
+            payload = ScopeToken(token)
             payload.verify_scope(
                 [
                     TokenScope.PASSWORD_VERIFY_SCOPE,
                     TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
                 ]
             )
+            # Validate new password
+            serializer = SetPasswordSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            # Update new password for user
             user = CustomUser.objects.get(id=payload.get("user_id"))
             user.set_password(serializer.validated_data["password"])
             if user.is_default_password:
@@ -119,7 +123,7 @@ class AccountViewSet(ViewSet):
             logger.info(
                 {
                     "event_type": EventType.SET_PASSWORD,
-                    "user_id": payload.get["user_id"],
+                    "user_id": payload.get("user_id"),
                     "message": "Set new password success",
                 }
             )
