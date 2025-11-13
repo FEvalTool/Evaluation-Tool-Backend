@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "corsheaders",
+    "rest_framework_simplejwt.token_blacklist",
     "common",
     "users",
 ]
@@ -175,11 +176,17 @@ SCOPE_TOKEN_LIFETIME_MINUTES = timedelta(
     minutes=int(os.environ.get("SCOPE_TOKEN_LIFETIME_MINUTES"))
 )
 
+SIMPLE_JWT = {
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+}
+
 # Cookie Settings
 COOKIE_SETTINGS = {
     # Custom attributes: Cookie name
     "AUTH_COOKIE_ACCESS": os.environ.get("AUTH_COOKIE_ACCESS"),
     "AUTH_COOKIE_REFRESH": os.environ.get("AUTH_COOKIE_REFRESH"),
+    "AUTH_COOKIE_SCOPE": os.environ.get("AUTH_COOKIE_SCOPE"),
     # Custom attributes: A string like "example.com", or None for standard domain cookie.
     "AUTH_COOKIE_DOMAIN": (
         None

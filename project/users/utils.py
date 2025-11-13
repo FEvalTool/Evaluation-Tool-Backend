@@ -1,4 +1,4 @@
-from django.conf import settings
+from .exceptions import TokenNotFoundException
 from .models import CustomUser
 
 
@@ -29,17 +29,23 @@ def generate_username(name):
     return f"{prefix_username}{len(users)+1}"
 
 
-def get_token_from_request(request):
+def get_token_from_cookie(request, cookie_name):
     """
-    Extract token from Authorization header or cookie for password and security QA setup
-    Priority: header > cookie
+    Extract token from cookie
+
+    Parameters
+    ----------
+    request: HttpRequest
+        The HTTP request object.
+    cookie_name: str
+        The name of the cookie to extract the token from.
+
+    Returns
+    -------
+    str or None
+        The token if found, otherwise None.
     """
-    # Header check
-    auth_header = request.META.get("HTTP_AUTHORIZATION")
-    if auth_header and auth_header.startswith("Bearer "):
-        return auth_header.split("Bearer ")[1]
-    # Cookie check (for browser-based setup)
-    cookie_token = request.COOKIES.get(settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"])
-    if cookie_token:
-        return cookie_token
-    return None
+    token = request.COOKIES.get(cookie_name)
+    if not token:
+        raise TokenNotFoundException(f"Token not found in cookie: {cookie_name}")
+    return token

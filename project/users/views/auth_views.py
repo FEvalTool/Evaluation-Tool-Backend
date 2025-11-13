@@ -21,8 +21,9 @@ from ..serializers import (
 )
 from common.constants import ErrorTypes
 from ..constants import EventType, TokenScope
-from ..exceptions import SecurityQAValidationException
+from ..exceptions import SecurityQAValidationException, TokenNotFoundException
 from ..custom_token import ScopeToken
+from ..utils import get_token_from_cookie
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,7 @@ class AuthViewSet(ViewSet):
                 raise CustomUser.DoesNotExist
             res = response.Response()
             response_data = {"message": "Successfully Login"}
+            user_data = {"id": user.id, "username": user.username}
             # Create and store token in cookie
             if user.is_default_password or not user.is_security_question_set:
                 # When user login for the first time, create scope jwt token
@@ -69,9 +71,9 @@ class AuthViewSet(ViewSet):
                     httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
                     samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
                 )
-                response_data["first_time_setup"] = True
-                response_data["is_password_setup"] = not user.is_default_password
-                response_data["is_security_qa_setup"] = user.is_security_question_set
+                user_data["first_time_setup"] = True
+                user_data["is_password_setup"] = not user.is_default_password
+                user_data["is_security_qa_setup"] = user.is_security_question_set
             else:
                 refresh = RefreshToken.for_user(user)
                 res.set_cookie(
@@ -99,6 +101,7 @@ class AuthViewSet(ViewSet):
                     "is_security_question_set": user.is_security_question_set,
                 }
             )
+            response_data["user"] = user_data
             res.data = response_data
             return res
         except ValidationError as e:
@@ -204,12 +207,17 @@ class AuthViewSet(ViewSet):
                     "username": username,
                 }
             )
-            return JsonResponse(
-                {
-                    "message": "Token generated successfully",
-                    "token": token,
-                },
+            res = response.Response()
+            res.set_cookie(
+                key=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                value=token,
+                max_age=settings.SCOPE_TOKEN_LIFETIME_MINUTES.total_seconds(),
+                secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
+                httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
+                samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
             )
+            res.data = {"message": "Token generated successfully"}
+            return res
         except ValidationError as e:
             logger.error(
                 {
@@ -312,12 +320,17 @@ class AuthViewSet(ViewSet):
                     "username": username,
                 }
             )
-            return JsonResponse(
-                {
-                    "message": "Token generated successfully",
-                    "token": token,
-                },
+            res = response.Response()
+            res.set_cookie(
+                key=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                value=token,
+                max_age=settings.SCOPE_TOKEN_LIFETIME_MINUTES.total_seconds(),
+                secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
+                httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
+                samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
             )
+            res.data = {"message": "Token generated successfully"}
+            return res
         except ValidationError as e:
             logger.error(
                 {
@@ -452,18 +465,9 @@ class AuthViewSet(ViewSet):
                     "message": "Begin refresh access token",
                 }
             )
-            token = request.COOKIES.get(settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"])
-            if not token:
-                logger.error(
-                    {
-                        "event_type": EventType.REFRESH_TOKEN,
-                        "message": "No refresh token in cookies",
-                    }
-                )
-                return JsonResponse(
-                    {"message": "No refresh token found"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            token = get_token_from_cookie(
+                request, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
+            )
             serializer = TokenRefreshSerializer(data={"refresh": token})
             serializer.is_valid(raise_exception=True)
             logger.info(
@@ -475,13 +479,13 @@ class AuthViewSet(ViewSet):
             res = response.Response()
             response_data = {"message": "Refresh token successful"}
             res.set_cookie(
-                    key=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
-                    value=serializer.validated_data["access"],
-                    max_age=api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
-                    secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
-                    httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
-                    samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
-                )
+                key=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
+                value=serializer.validated_data["access"],
+                max_age=api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
+                secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
+                httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
+                samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
+            )
             res.data = response_data
             return res
         except ValidationError as e:
@@ -497,6 +501,18 @@ class AuthViewSet(ViewSet):
                     "message": "Invalid request",
                     "error_content": e.detail,
                 },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except TokenNotFoundException as e:
+            logger.error(
+                {
+                    "event_type": EventType.REFRESH_TOKEN,
+                    "error_type": ErrorTypes.TOKEN_NOT_FOUND,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {"message": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except TokenError as e:

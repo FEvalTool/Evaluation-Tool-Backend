@@ -2,6 +2,7 @@ import logging
 
 from django.http import JsonResponse
 from django.utils.crypto import get_random_string
+from django.conf import settings
 from rest_framework import status
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
@@ -16,8 +17,9 @@ from ..serializers import (
 )
 from common.constants import ErrorTypes
 from ..constants import EventType, TokenScope
-from ..utils import generate_username, get_token_from_request
+from ..utils import generate_username, get_token_from_cookie
 from ..custom_token import ScopeToken
+from ..exceptions import TokenNotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +104,9 @@ class AccountViewSet(ViewSet):
                 }
             )
             # Extract token from request and verify scope
-            token = get_token_from_request(request)
+            token = get_token_from_cookie(
+                request, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
+            )
             payload = ScopeToken(token)
             payload.verify_scope(
                 [
@@ -141,6 +145,18 @@ class AccountViewSet(ViewSet):
                     "message": "Invalid request",
                     "error_content": e.detail,
                 },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except TokenNotFoundException as e:
+            logger.error(
+                {
+                    "event_type": EventType.SET_PASSWORD,
+                    "error_type": ErrorTypes.TOKEN_NOT_FOUND,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {"message": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except TokenError as e:
