@@ -1,4 +1,5 @@
 import logging
+import json
 
 from django.http import JsonResponse
 from django.conf import settings
@@ -375,7 +376,7 @@ class AuthViewSet(ViewSet):
     @action(detail=False, methods=["post"], url_path="token/verify")
     def verify_token(self, request):
         """
-        Endpoint to verify access token validity in cookie
+        Endpoint to verify token validity in cookie
         """
         try:
             logger.info(
@@ -384,14 +385,11 @@ class AuthViewSet(ViewSet):
                     "message": "Begin verify token",
                 }
             )
-            if request.body.get("token_type") == "scope":
-                cookie_name = settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
-            elif request.body.get("token_type") == "access":
-                cookie_name = settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]
+            request_body = json.loads(request.body)
+            if request_body.get("token_type", None):
+                cookie_name = request_body.get("token_type")
             else:
-                raise ValidationError(
-                    {"token_type": ["token_type must be 'scope' or 'access'"]}
-                )
+                raise ValidationError({"token_type": ["token_type must be provided"]})
             token = get_token_from_cookie(request, cookie_name)
             serializer = TokenVerifySerializer(data={"token": token})
             serializer.is_valid(raise_exception=True)
