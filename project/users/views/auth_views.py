@@ -1,5 +1,4 @@
 import logging
-import json
 
 from django.http import JsonResponse
 from django.conf import settings
@@ -19,6 +18,7 @@ from ..models import CustomUser, UserQuestionAnswer
 from ..serializers import (
     UserLoginSerializer,
     GetSecurityQAVerificationTokenSerializer,
+    TokenTypeSerializer,
 )
 from common.constants import ErrorTypes
 from ..constants import EventType, TokenScope
@@ -385,12 +385,11 @@ class AuthViewSet(ViewSet):
                     "message": "Begin verify token",
                 }
             )
-            request_body = json.loads(request.body)
-            if request_body.get("token_type", None):
-                cookie_name = request_body.get("token_type")
-            else:
-                raise ValidationError({"token_type": ["token_type must be provided"]})
-            token = get_token_from_cookie(request, cookie_name)
+            serializer = TokenTypeSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            token = get_token_from_cookie(
+                request, serializer.validated_data["token_type"]
+            )
             serializer = TokenVerifySerializer(data={"token": token})
             serializer.is_valid(raise_exception=True)
             logger.info(
@@ -534,6 +533,72 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.REFRESH_TOKEN,
+                    "error_type": ErrorTypes.EXCEPTION,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {"message": "Internal server error", "error_content": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=False, methods=["post"], url_path="token/delete")
+    def delete_token(self, request):
+        """
+        Endpoint to delete tokens from cookies
+        """
+        try:
+            logger.info(
+                {
+                    "event_type": EventType.DELETE_TOKEN,
+                    "message": "Begin delete tokens from cookies",
+                }
+            )
+            res = response.Response()
+            serializer = TokenTypeSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            # Validate token existence
+            get_token_from_cookie(request, serializer.validated_data["token_type"])
+            res.delete_cookie(key=serializer.validated_data["token_type"])
+            res.data = {"message": "Tokens deleted successfully"}
+            logger.info(
+                {
+                    "event_type": EventType.DELETE_TOKEN,
+                    "message": "Tokens deleted successfully from cookies",
+                }
+            )
+            return res
+        except ValidationError as e:
+            logger.error(
+                {
+                    "event_type": EventType.DELETE_TOKEN,
+                    "error_type": ErrorTypes.REQUEST_VALIDATION,
+                    "error_content": e.detail,
+                }
+            )
+            return JsonResponse(
+                {
+                    "message": "Invalid request",
+                    "error_content": e.detail,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except TokenNotFoundException as e:
+            logger.error(
+                {
+                    "event_type": EventType.DELETE_TOKEN,
+                    "error_type": ErrorTypes.TOKEN_NOT_FOUND,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {"message": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            logger.error(
+                {
+                    "event_type": EventType.DELETE_TOKEN,
                     "error_type": ErrorTypes.EXCEPTION,
                     "error_content": str(e),
                 }

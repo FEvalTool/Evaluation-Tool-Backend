@@ -73,3 +73,7 @@ class GetSecurityQAVerificationTokenSerializer(serializers.Serializer):
                 f"Number of Questions must equals to {VALID_SECURITY_QA_NUMS}"
             )
         return value
+
+
+class TokenTypeSerializer(serializers.Serializer):
+    token_type = serializers.CharField()
