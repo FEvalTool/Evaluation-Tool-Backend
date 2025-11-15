@@ -64,7 +64,7 @@ class AuthViewSet(ViewSet):
                     user, TokenScope.PASSWORD_VERIFY_SCOPE
                 )
                 res.set_cookie(
-                    key=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
+                    key=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
                     value=str(scope_token),
                     max_age=api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
                     secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
@@ -229,7 +229,6 @@ class AuthViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Invalid request",
-                    "error_type": ErrorTypes.REQUEST_VALIDATION,
                     "error_content": e.detail,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -342,7 +341,6 @@ class AuthViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Invalid request",
-                    "error_type": ErrorTypes.REQUEST_VALIDATION,
                     "error_content": e.detail,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -386,21 +384,16 @@ class AuthViewSet(ViewSet):
                     "message": "Begin verify token",
                 }
             )
-            access_token = request.COOKIES.get(
-                settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]
-            )
-            if not access_token:
-                logger.error(
-                    {
-                        "event_type": EventType.VERIFY_TOKEN,
-                        "message": "No access token in cookies",
-                    }
+            if request.body.get("token_type") == "scope":
+                cookie_name = settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
+            elif request.body.get("token_type") == "access":
+                cookie_name = settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]
+            else:
+                raise ValidationError(
+                    {"token_type": ["token_type must be 'scope' or 'access'"]}
                 )
-                return JsonResponse(
-                    {"message": "No access token found"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            serializer = TokenVerifySerializer(data={"token": access_token})
+            token = get_token_from_cookie(request, cookie_name)
+            serializer = TokenVerifySerializer(data={"token": token})
             serializer.is_valid(raise_exception=True)
             logger.info(
                 {
@@ -426,6 +419,18 @@ class AuthViewSet(ViewSet):
                     "message": "Invalid request",
                     "error_content": e.detail,
                 },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except TokenNotFoundException as e:
+            logger.error(
+                {
+                    "event_type": EventType.VERIFY_TOKEN,
+                    "error_type": ErrorTypes.TOKEN_NOT_FOUND,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {"message": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except TokenError as e:
