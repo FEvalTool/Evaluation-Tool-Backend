@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "corsheaders",
-    "rest_framework_simplejwt.token_blacklist",
     "common",
     "users",
 ]
@@ -178,7 +177,6 @@ SCOPE_TOKEN_LIFETIME_MINUTES = timedelta(
 
 SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 # Cookie Settings
@@ -202,6 +200,16 @@ COOKIE_SETTINGS = {
     # Custom attributes: Whether to set the flag restricting cookie leaks on cross-site requests.
     # This can be 'Lax', 'Strict', or None to disable the flag.
     "AUTH_COOKIE_SAMESITE": os.environ.get("AUTH_COOKIE_SAMESITE"),
+}
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://redis:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
 }
 
 # Set CORS settings

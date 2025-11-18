@@ -24,7 +24,11 @@ from common.constants import ErrorTypes
 from ..constants import EventType, TokenScope
 from ..exceptions import SecurityQAValidationException, TokenNotFoundException
 from ..custom_token import ScopeToken
-from ..utils import get_token_from_cookie
+from ..utils import (
+    get_token_from_cookie,
+    store_blacklist_token,
+    check_token_blacklisted,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -395,6 +399,7 @@ class AuthViewSet(ViewSet):
             token = get_token_from_cookie(
                 request, serializer.validated_data["token_type"]
             )
+            check_token_blacklisted(token, serializer.validated_data["token_type"])
             serializer = TokenVerifySerializer(data={"token": token})
             serializer.is_valid(raise_exception=True)
             logger.info(
@@ -475,6 +480,10 @@ class AuthViewSet(ViewSet):
             token = get_token_from_cookie(
                 request, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
             )
+            # Check if refresh token is blacklisted
+            check_token_blacklisted(
+                token, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
+            )
             serializer = TokenRefreshSerializer(data={"refresh": token})
             serializer.is_valid(raise_exception=True)
             logger.info(
@@ -482,6 +491,10 @@ class AuthViewSet(ViewSet):
                     "event_type": EventType.REFRESH_TOKEN,
                     "message": "Token is refreshed",
                 }
+            )
+            # Store old refresh token in blacklist
+            store_blacklist_token(
+                token, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
             )
             res = response.Response()
             response_data = {"message": "Refresh token successful"}
@@ -571,10 +584,13 @@ class AuthViewSet(ViewSet):
             )
             res = response.Response()
             # Validate token existence
-            get_token_from_cookie(
+            token = get_token_from_cookie(
                 request, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
             )
+            # Delete scope token from cookies
             res.delete_cookie(key=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"])
+            # Store deleted scope token in blacklist
+            store_blacklist_token(token, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"])
             res.data = {"message": "Scope tokens deleted successfully"}
             logger.info(
                 {

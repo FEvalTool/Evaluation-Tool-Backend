@@ -1,6 +1,10 @@
 version: '3.8'
 
 services:
+    redis:
+        image: redis:8.2.3-alpine
+        ports:
+            - ${REDIS_LOCAL_PORT}:${REDIS_DOCKER_PORT}
     db:
         image: mysql:8
         container_name: evaluation_tool_db
@@ -29,3 +33,4 @@ services:
             - ${BACKEND_LOCAL_PORT}:${BACKEND_DOCKER_PORT}
         depends_on:
             - db
+            - redis

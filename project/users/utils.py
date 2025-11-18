@@ -1,5 +1,12 @@
+import time
+from rest_framework_simplejwt.tokens import RefreshToken, UntypedToken
+from rest_framework_simplejwt.exceptions import TokenError
+
 from .exceptions import TokenNotFoundException
 from .models import CustomUser
+from .custom_token import ScopeToken
+from .redis.tokens import RefreshTokenRedis, ScopeTokenRedis
+from .redis.base import RedisBase
 
 
 def generate_username(name):
@@ -49,3 +56,70 @@ def get_token_from_cookie(request, cookie_name):
     if not token:
         raise TokenNotFoundException(f"Token not found in cookie: {cookie_name}")
     return token
+
+
+token_properties = {
+    "refresh": {
+        "token_class": RefreshToken,
+        "redis_class": RefreshTokenRedis,
+    },
+    "scope": {
+        "token_class": ScopeToken,
+        "redis_class": ScopeTokenRedis,
+    },
+}
+
+
+def store_blacklist_token(token, token_type):
+    """
+    Store blacklisted token in redis
+
+    Parameters
+    ----------
+    token: str
+        The jwt token.
+    token_type: int
+        Type of jwt token (refresh/scope).
+
+    Returns
+    -------
+    None
+    """
+    if token_type not in token_properties:
+        raise ValueError("Invalid token type: {}".format(token_type))
+    redis_class = token_properties[token_type]["redis_class"]
+    token_class = token_properties[token_type]["token_class"]
+    token_info = token_class(token)
+
+    current_timestamp = time.time()
+    expiration_timestamp = token_info["exp"]
+
+    ttl = int(expiration_timestamp - current_timestamp)
+    jti = token_info["jti"]
+    redis_class.store(jti, ttl)
+
+
+def check_token_blacklisted(token, token_type):
+    """
+    Check if token is blacklisted
+
+    Parameters
+    ----------
+    token: str
+        The jwt token.
+    token_type: int
+        Type of jwt token (refresh/scope).
+    Returns
+    -------
+    None
+    """
+    redis_class = RedisBase
+    token_class = UntypedToken
+    if token_type in token_properties:
+        redis_class = token_properties[token_type]["redis_class"]
+        token_class = token_properties[token_type]["token_class"]
+    token_info = token_class(token)
+
+    jti = token_info["jti"]
+    if redis_class.exists(jti):
+        raise TokenError("Token is blacklisted")
