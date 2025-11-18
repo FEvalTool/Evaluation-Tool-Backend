@@ -204,9 +204,11 @@ class AuthViewSet(ViewSet):
                         "Security answers aren't correct"
                     )
             # Generate security qa verification token
-            token = str(
-                ScopeToken.for_user(user, TokenScope.SECURITY_QUESTION_VERIFY_SCOPE)
+            token_instance = ScopeToken.for_user(
+                user, TokenScope.SECURITY_QUESTION_VERIFY_SCOPE
             )
+            token = str(token_instance)
+            exp = token_instance.payload.get("exp")
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
@@ -225,7 +227,7 @@ class AuthViewSet(ViewSet):
                 samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
                 path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
             )
-            res.data = {"message": "Token generated successfully"}
+            res.data = {"message": "Token generated successfully", "exp": exp}
             return res
         except ValidationError as e:
             logger.error(
@@ -319,7 +321,9 @@ class AuthViewSet(ViewSet):
             if not user.check_password(serializer.validated_data["password"]):
                 raise CustomUser.DoesNotExist
             # Generate password verification token
-            token = str(ScopeToken.for_user(user, TokenScope.PASSWORD_VERIFY_SCOPE))
+            token_instance = ScopeToken.for_user(user, TokenScope.PASSWORD_VERIFY_SCOPE)
+            token = str(token_instance)
+            exp = token_instance.payload.get("exp")
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
@@ -338,7 +342,7 @@ class AuthViewSet(ViewSet):
                 samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
                 path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
             )
-            res.data = {"message": "Token generated successfully"}
+            res.data = {"message": "Token generated successfully", "exp": exp}
             return res
         except ValidationError as e:
             logger.error(
