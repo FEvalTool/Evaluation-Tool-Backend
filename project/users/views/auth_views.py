@@ -97,6 +97,8 @@ class AuthViewSet(ViewSet):
                     samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
                     path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
                 )
+            response_data["user"] = user_data
+            res.data = response_data
             logger.info(
                 {
                     "event_type": EventType.LOGIN,
@@ -106,8 +108,6 @@ class AuthViewSet(ViewSet):
                     "is_security_question_set": user.is_security_question_set,
                 }
             )
-            response_data["user"] = user_data
-            res.data = response_data
             return res
         except ValidationError as e:
             logger.error(
@@ -206,14 +206,6 @@ class AuthViewSet(ViewSet):
             )
             token = str(token_instance)
             exp = token_instance.payload.get("exp")
-            logger.info(
-                {
-                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
-                    "message": "Get security qa verification token successfully",
-                    "username": username,
-                }
-            )
             res = response.Response()
             res.set_cookie(
                 key=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
@@ -225,6 +217,14 @@ class AuthViewSet(ViewSet):
                 path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
             )
             res.data = {"message": "Token generated successfully", "exp": exp}
+            logger.info(
+                {
+                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
+                    "message": "Get security qa verification token successfully",
+                    "username": username,
+                }
+            )
             return res
         except ValidationError as e:
             logger.error(
@@ -321,14 +321,6 @@ class AuthViewSet(ViewSet):
             token_instance = ScopeToken.for_user(user, TokenScope.PASSWORD_VERIFY_SCOPE)
             token = str(token_instance)
             exp = token_instance.payload.get("exp")
-            logger.info(
-                {
-                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
-                    "message": "Get password verification token successfully",
-                    "username": username,
-                }
-            )
             res = response.Response()
             res.set_cookie(
                 key=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
@@ -340,6 +332,14 @@ class AuthViewSet(ViewSet):
                 path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
             )
             res.data = {"message": "Token generated successfully", "exp": exp}
+            logger.info(
+                {
+                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
+                    "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
+                    "message": "Get password verification token successfully",
+                    "username": username,
+                }
+            )
             return res
         except ValidationError as e:
             logger.error(
@@ -487,12 +487,6 @@ class AuthViewSet(ViewSet):
             store_blacklist_token(
                 token, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
             )
-            logger.info(
-                {
-                    "event_type": EventType.REFRESH_TOKEN,
-                    "message": "Token is refreshed",
-                }
-            )
             res = response.Response()
             response_data = {"message": "Refresh token successful"}
             res.set_cookie(
@@ -514,6 +508,12 @@ class AuthViewSet(ViewSet):
                 path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
             )
             res.data = response_data
+            logger.info(
+                {
+                    "event_type": EventType.REFRESH_TOKEN,
+                    "message": "Token is refreshed",
+                }
+            )
             return res
         except TokenNotFoundException as e:
             logger.error(
