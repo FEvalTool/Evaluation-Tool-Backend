@@ -36,7 +36,7 @@ def generate_username(name):
     return f"{prefix_username}{len(users)+1}"
 
 
-def get_token_from_cookie(request, cookie_name):
+def get_token_from_cookie(request, cookie_name, bypass_token_notfound_error):
     """
     Extract token from cookie
 
@@ -46,6 +46,8 @@ def get_token_from_cookie(request, cookie_name):
         The HTTP request object.
     cookie_name: str
         The name of the cookie to extract the token from.
+    bypass_token_notfound_error: bool
+        If True, do not raise an error if the token is not found.
 
     Returns
     -------
@@ -53,7 +55,7 @@ def get_token_from_cookie(request, cookie_name):
         The token if found, otherwise None.
     """
     token = request.COOKIES.get(cookie_name)
-    if not token:
+    if not token and not bypass_token_notfound_error:
         raise TokenNotFoundException(f"Token not found in cookie: {cookie_name}")
     return token
 
@@ -99,7 +101,7 @@ def store_blacklist_token(token, token_type):
     redis_class.store(jti, ttl)
 
 
-def check_token_blacklisted(token, token_type):
+def check_token_validity(token, token_type):
     """
     Check if token is blacklisted
 
@@ -118,6 +120,7 @@ def check_token_blacklisted(token, token_type):
     if token_type in token_properties:
         redis_class = token_properties[token_type]["redis_class"]
         token_class = token_properties[token_type]["token_class"]
+    # This step also verifies the token validity (e.g., signature, expiration)
     token_info = token_class(token)
 
     jti = token_info["jti"]

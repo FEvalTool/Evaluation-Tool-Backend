@@ -17,7 +17,7 @@ from ..serializers import (
 )
 from common.constants import ErrorTypes
 from ..constants import EventType, TokenScope
-from ..utils import generate_username, get_token_from_cookie, check_token_blacklisted
+from ..utils import generate_username, get_token_from_cookie, check_token_validity
 from ..custom_token import ScopeToken
 from ..exceptions import TokenNotFoundException
 
@@ -105,11 +105,9 @@ class AccountViewSet(ViewSet):
             )
             # Extract token from request and verify scope
             token = get_token_from_cookie(
-                request, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
+                request, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"], False
             )
-            check_token_blacklisted(
-                token, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
-            )
+            check_token_validity(token, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"])
             payload = ScopeToken(token)
             payload.verify_scope(
                 [

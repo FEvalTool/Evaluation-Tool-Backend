@@ -7,10 +7,7 @@ from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.serializers import (
-    TokenVerifySerializer,
-    TokenRefreshSerializer,
-)
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.exceptions import TokenError
 
@@ -21,13 +18,13 @@ from ..serializers import (
     TokenTypeSerializer,
 )
 from common.constants import ErrorTypes
-from ..constants import EventType, TokenScope
+from ..constants import EventType, TokenScope, BYPASS_TOKEN_NOTFOUND
 from ..exceptions import SecurityQAValidationException, TokenNotFoundException
 from ..custom_token import ScopeToken
 from ..utils import (
     get_token_from_cookie,
     store_blacklist_token,
-    check_token_blacklisted,
+    check_token_validity,
 )
 
 logger = logging.getLogger(__name__)
@@ -401,11 +398,9 @@ class AuthViewSet(ViewSet):
             serializer = TokenTypeSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             token = get_token_from_cookie(
-                request, serializer.validated_data["token_type"]
+                request, serializer.validated_data["token_type"], False
             )
-            check_token_blacklisted(token, serializer.validated_data["token_type"])
-            serializer = TokenVerifySerializer(data={"token": token})
-            serializer.is_valid(raise_exception=True)
+            check_token_validity(token, serializer.validated_data["token_type"])
             logger.info(
                 {
                     "event_type": EventType.VERIFY_TOKEN,
@@ -482,23 +477,21 @@ class AuthViewSet(ViewSet):
                 }
             )
             token = get_token_from_cookie(
-                request, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
+                request, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"], False
             )
-            # Check if refresh token is blacklisted
-            check_token_blacklisted(
+            # Check if refresh token is valid and not in blacklisted
+            check_token_validity(token, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"])
+            # Get new access and refresh token
+            serializer = TokenRefreshSerializer(data={"refresh": token})
+            # Store old refresh token in blacklist
+            store_blacklist_token(
                 token, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
             )
-            serializer = TokenRefreshSerializer(data={"refresh": token})
-            serializer.is_valid(raise_exception=True)
             logger.info(
                 {
                     "event_type": EventType.REFRESH_TOKEN,
                     "message": "Token is refreshed",
                 }
-            )
-            # Store old refresh token in blacklist
-            store_blacklist_token(
-                token, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
             )
             res = response.Response()
             response_data = {"message": "Refresh token successful"}
@@ -522,21 +515,6 @@ class AuthViewSet(ViewSet):
             )
             res.data = response_data
             return res
-        except ValidationError as e:
-            logger.error(
-                {
-                    "event_type": EventType.REFRESH_TOKEN,
-                    "error_type": ErrorTypes.REQUEST_VALIDATION,
-                    "error_content": e.detail,
-                }
-            )
-            return JsonResponse(
-                {
-                    "message": "Invalid request",
-                    "error_content": e.detail,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         except TokenNotFoundException as e:
             logger.error(
                 {
@@ -586,15 +564,21 @@ class AuthViewSet(ViewSet):
                     "message": "Begin delete scope token from cookies",
                 }
             )
+            bypass_token_notfound_err = request.data.get(BYPASS_TOKEN_NOTFOUND, True)
             res = response.Response()
             # Validate token existence
             token = get_token_from_cookie(
-                request, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
+                request,
+                settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                bypass_token_notfound_err,
             )
             # Delete scope token from cookies
             res.delete_cookie(key=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"])
             # Store deleted scope token in blacklist
-            store_blacklist_token(token, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"])
+            if token:
+                store_blacklist_token(
+                    token, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
+                )
             res.data = {"message": "Scope tokens deleted successfully"}
             logger.info(
                 {
@@ -619,6 +603,73 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.DELETE_SCOPE_TOKEN,
+                    "error_type": ErrorTypes.EXCEPTION,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {"message": "Internal server error", "error_content": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=False, methods=["post"], url_path="logout")
+    def delete_refresh_access_token(self, request):
+        """
+        Endpoint to delete access and refresh tokens from cookies
+        (Logout normal user)
+        """
+        try:
+            logger.info(
+                {
+                    "event_type": EventType.LOGOUT,
+                    "message": "Begin logout",
+                }
+            )
+            bypass_token_notfound_err = request.data.get(BYPASS_TOKEN_NOTFOUND, True)
+            # Validate token existence
+            get_token_from_cookie(
+                request,
+                settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
+                bypass_token_notfound_err,
+            )
+            refresh_token = get_token_from_cookie(
+                request,
+                settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"],
+                bypass_token_notfound_err,
+            )
+            res = response.Response()
+            # Delete tokens from cookies
+            res.delete_cookie(key=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"])
+            res.delete_cookie(key=settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"])
+            # Store deleted refresh token in blacklist
+            if refresh_token:
+                store_blacklist_token(
+                    refresh_token, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
+                )
+            res.data = {"message": "Logout successfully"}
+            logger.info(
+                {
+                    "event_type": EventType.LOGOUT,
+                    "message": "Logout successful",
+                }
+            )
+            return res
+        except TokenNotFoundException as e:
+            logger.error(
+                {
+                    "event_type": EventType.LOGOUT,
+                    "error_type": ErrorTypes.TOKEN_NOT_FOUND,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {"message": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            logger.error(
+                {
+                    "event_type": EventType.LOGOUT,
                     "error_type": ErrorTypes.EXCEPTION,
                     "error_content": str(e),
                 }
