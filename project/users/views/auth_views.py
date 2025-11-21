@@ -216,7 +216,8 @@ class AuthViewSet(ViewSet):
                 samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
                 path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
             )
-            res.data = {"message": "Token generated successfully", "exp": exp}
+            # Convert exp to milliseconds
+            res.data = {"message": "Token generated successfully", "exp": exp * 1000}
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
@@ -331,7 +332,8 @@ class AuthViewSet(ViewSet):
                 samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
                 path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
             )
-            res.data = {"message": "Token generated successfully", "exp": exp}
+            # Convert exp to milliseconds
+            res.data = {"message": "Token generated successfully", "exp": exp * 1000}
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
