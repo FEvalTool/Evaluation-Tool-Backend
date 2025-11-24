@@ -177,11 +177,11 @@ class AccountViewSet(ViewSet):
                 {
                     "event_type": EventType.SET_PASSWORD,
                     "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": f"User with username {payload['username']} is not existed",
+                    "error_content": f"User with id {payload.get('user_id')} is not existed",
                 }
             )
             return JsonResponse(
-                {"message": f"User with username {payload['username']} is not existed"},
+                {"message": f"User is not existed"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Exception as e:

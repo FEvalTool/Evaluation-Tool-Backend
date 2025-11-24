@@ -1,17 +1,21 @@
 from unittest import mock
 from django.urls import reverse
+from django.conf import settings
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from users.utils import create_jwt
+from users.custom_token import ScopeToken
+from users.models import CustomUser
 from users.constants import TokenScope
 from tests.helpers.setup_mock_accounts import setup_mock_accounts
+from tests.helpers.setup_mock_token import create_unknown_user_scope_token
 
 
 class AccountViewsTestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
+        self.client.cookies.clear()
         self.account_url = reverse("account-list")
         self.set_password_url = reverse("account-set-password")
         self.get_user_security_questions_url = reverse(
@@ -61,11 +65,11 @@ class AccountViewsTestCase(TestCase):
         self.assertIn("error_content", response.json())
 
     def test_set_password_success(self):
-        token = create_jwt(
-            {"username": "testuser1", "scope": TokenScope.PASSWORD_VERIFY_SCOPE}
-        )
+        user = CustomUser.objects.get(username="testuser1")
+        token = str(ScopeToken.for_user(user, TokenScope.PASSWORD_VERIFY_SCOPE))
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = token
         response = self.client.post(
-            self.set_password_url, {"token": token, "password": "NewPassword123!"}
+            self.set_password_url, {"password": "NewPassword123!"}
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -73,9 +77,10 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(response.json()["message"], "Successfully set new password")
 
     def test_set_password_validation_failure(self):
-        response = self.client.post(
-            self.set_password_url, {"password": "NewPassword123!"}
-        )
+        user = CustomUser.objects.get(username="testuser1")
+        token = str(ScopeToken.for_user(user, TokenScope.PASSWORD_VERIFY_SCOPE))
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = token
+        response = self.client.post(self.set_password_url, {})
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("message", response.json())
@@ -83,9 +88,12 @@ class AccountViewsTestCase(TestCase):
         self.assertIn("error_content", response.json())
 
     def test_set_password_invalid_token(self):
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            "invalid.token.here"
+        )
         response = self.client.post(
             self.set_password_url,
-            {"token": "invalid.token.here", "password": "NewPassword123!"},
+            {"password": "NewPassword123!"},
         )
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -94,9 +102,8 @@ class AccountViewsTestCase(TestCase):
         self.assertIn("error_content", response.json())
 
     def test_set_password_username_not_exist(self):
-        token = create_jwt(
-            {"username": "unknownuser", "scope": TokenScope.PASSWORD_VERIFY_SCOPE}
-        )
+        token = create_unknown_user_scope_token()
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = token
         response = self.client.post(
             self.set_password_url, {"token": token, "password": "NewPassword123!"}
         )
@@ -104,17 +111,14 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertIn("message", response.json())
         self.assertEqual(
-            response.json()["message"], "User with username unknownuser is not existed"
+            response.json()["message"], "User is not existed"
         )
 
-    @mock.patch("users.views.account_views.decode_and_verify_jwt")
-    def test_set_password_internal_server_error(self, mock_decode_and_verify_jwt):
-        mock_decode_and_verify_jwt.side_effect = Exception("Unexpected error")
-        token = create_jwt(
-            {"username": "testuser1", "scope": TokenScope.PASSWORD_VERIFY_SCOPE}
-        )
+    @mock.patch("users.views.account_views.get_token_from_cookie")
+    def test_set_password_internal_server_error(self, mock_get_token):
+        mock_get_token.side_effect = Exception("Unexpected error")
         response = self.client.post(
-            self.set_password_url, {"token": token, "password": "NewPassword123!"}
+            self.set_password_url, {"password": "NewPassword123!"}
         )
 
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)

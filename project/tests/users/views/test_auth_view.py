@@ -1,6 +1,7 @@
 from unittest import mock
 from django.test import TestCase
 from django.urls import reverse
+from django.conf import settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -28,9 +29,18 @@ class AuthViewsTestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json()["is_default_password"], True)
-        self.assertEqual(response.json()["is_security_question_set"], False)
-        self.assertIn("token", response.json())
+        user_data = response.json()["user"]
+        self.assertEqual(user_data["username"], "testuser")
+        self.assertEqual(user_data["first_time_setup"], True)
+        self.assertEqual(user_data["is_password_setup"], False)
+        self.assertEqual(user_data["is_security_qa_setup"], False)
+        scope_token_cookie = response.cookies.get(
+            settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
+        )
+        self.assertIsNotNone(
+            scope_token_cookie,
+            f"The {settings.COOKIE_SETTINGS['AUTH_COOKIE_SCOPE']} cookie was not set in the response.",
+        )
 
     def test_login_success_normal_user(self):
         response = self.client.post(
@@ -40,9 +50,24 @@ class AuthViewsTestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json()["is_default_password"], False)
-        self.assertEqual(response.json()["is_security_question_set"], True)
-        self.assertIn("token", response.json())
+        user_data = response.json()["user"]
+        self.assertEqual(user_data["username"], "testuser1")
+        with self.assertRaises(KeyError) as context:
+            _ = user_data["first_time_setup"]
+        scope_token_cookie = response.cookies.get(
+            settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]
+        )
+        self.assertIsNotNone(
+            scope_token_cookie,
+            f"The {settings.COOKIE_SETTINGS['AUTH_COOKIE_ACCESS']} cookie was not set in the response.",
+        )
+        scope_token_cookie = response.cookies.get(
+            settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
+        )
+        self.assertIsNotNone(
+            scope_token_cookie,
+            f"The {settings.COOKIE_SETTINGS['AUTH_COOKIE_REFRESH']} cookie was not set in the response.",
+        )
 
     def test_login_failure_wrong_password(self):
         response = self.client.post(
@@ -70,7 +95,7 @@ class AuthViewsTestCase(TestCase):
         self.assertIn("error_content", response.json())
         self.assertIn("password", response.json()["error_content"])
 
-    @mock.patch("users.views.auth_views.create_jwt")
+    @mock.patch("users.views.auth_views.ScopeToken.for_user")
     def test_login_internal_server_error(self, mock_create_jwt):
         mock_create_jwt.side_effect = Exception("JWT creation failed")
         response = self.client.post(
@@ -101,15 +126,24 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Token generated successfully")
-        self.assertIn("token", response.json())
+        scope_token_cookie = response.cookies.get(
+            settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
+        )
+        self.assertIsNotNone(
+            scope_token_cookie,
+            f"The {settings.COOKIE_SETTINGS['AUTH_COOKIE_SCOPE']} cookie was not set in the response.",
+        )
 
     def test_generate_qa_verification_token_first_time_user_not_allowed(self):
+        questions_answers = UserQuestionAnswer.objects.all()
+        questions = [qa.question.id for qa in questions_answers]
+        answers = [qa.answer for qa in questions_answers]
         response = self.client.post(
             self.generate_qa_token_url,
             {
                 "username": "testuser",
-                "questions": [1, 2, 3],
-                "answers": ["Smith", "Fluffy", "Greenwood"],
+                "questions": questions,
+                "answers": answers,
             },
             format="json",
         )
@@ -123,13 +157,12 @@ class AuthViewsTestCase(TestCase):
     def test_generate_qa_verification_token_wrong_answer_failure(self):
         questions_answers = UserQuestionAnswer.objects.all()
         questions = [qa.question.id for qa in questions_answers]
-        answers = ["error"] * 3
         response = self.client.post(
             self.generate_qa_token_url,
             {
                 "username": "testuser1",
                 "questions": questions,
-                "answers": answers,
+                "answers": ["Wrong1", "Wrong2", "Wrong3"],
             },
             format="json",
         )
@@ -141,7 +174,7 @@ class AuthViewsTestCase(TestCase):
     def test_generate_qa_verification_username_not_found(self):
         questions_answers = UserQuestionAnswer.objects.all()
         questions = [qa.question.id for qa in questions_answers]
-        answers = ["error"] * 3
+        answers = [qa.answer for qa in questions_answers]
         response = self.client.post(
             self.generate_qa_token_url,
             {
@@ -172,7 +205,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.json()["message"], "Invalid request")
         self.assertIn("error_content", response.json())
 
-    @mock.patch("users.views.auth_views.create_jwt")
+    @mock.patch("users.views.auth_views.ScopeToken.for_user")
     def test_generate_qa_verification_token_internal_server_error(
         self, mock_create_jwt
     ):
@@ -205,7 +238,13 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Token generated successfully")
-        self.assertIn("token", response.json())
+        scope_token_cookie = response.cookies.get(
+            settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
+        )
+        self.assertIsNotNone(
+            scope_token_cookie,
+            f"The {settings.COOKIE_SETTINGS['AUTH_COOKIE_SCOPE']} cookie was not set in the response.",
+        )
 
     def test_generate_password_verification_token_first_time_user_not_allowed(self):
         response = self.client.post(
@@ -245,7 +284,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.json()["message"], "Invalid request")
         self.assertIn("error_content", response.json())
 
-    @mock.patch("users.views.auth_views.create_jwt")
+    @mock.patch("users.views.auth_views.ScopeToken.for_user")
     def test_generate_password_verification_token_internal_server_error(
         self, mock_create_jwt
     ):
