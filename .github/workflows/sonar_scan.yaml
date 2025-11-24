@@ -43,6 +43,13 @@ jobs:
         SQL_HOST: 127.0.0.1
         SQL_PORT: 3306
         ENVIRONMENT: TEST
+        AUTH_COOKIE_ACCESS: access
+        AUTH_COOKIE_REFRESH: refresh
+        AUTH_COOKIE_SCOPE: scope
+        AUTH_COOKIE_SECURE: true
+        AUTH_COOKIE_HTTP_ONLY: true
+        AUTH_COOKIE_PATH: /
+        SCOPE_TOKEN_LIFETIME_MINUTES: 10
     - name: Run SonarCloud Scanner
       uses: SonarSource/sonarqube-scan-action@v4.2.1
       env:
