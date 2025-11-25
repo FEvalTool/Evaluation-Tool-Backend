@@ -202,10 +202,11 @@ COOKIE_SETTINGS = {
     "AUTH_COOKIE_SAMESITE": os.environ.get("AUTH_COOKIE_SAMESITE"),
 }
 
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://redis:6379/1",
+        "LOCATION": f"redis://{REDIS_HOST}:6379/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
