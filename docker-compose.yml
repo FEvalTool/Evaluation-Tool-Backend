@@ -5,6 +5,12 @@ services:
         image: redis:8.2.3-alpine
         ports:
             - ${REDIS_LOCAL_PORT}:${REDIS_DOCKER_PORT}
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
     db:
         image: mysql:8
         container_name: evaluation_tool_db

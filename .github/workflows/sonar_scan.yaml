@@ -17,6 +17,15 @@ jobs:
           MYSQL_ROOT_PASSWORD: zergling
           MYSQL_DATABASE: mysql
         ports: ['3306:3306']
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
    steps:
     - name: Checkout code
       uses: actions/checkout@v2
