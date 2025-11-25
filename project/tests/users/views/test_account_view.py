@@ -5,11 +5,8 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from users.custom_token import ScopeToken
-from users.models import CustomUser
-from users.constants import TokenScope
 from tests.helpers.setup_mock_accounts import setup_mock_accounts
-from tests.helpers.setup_mock_token import create_unknown_user_scope_token
+from tests.helpers.setup_mock_token import TokenFactory
 
 
 class AccountViewsTestCase(TestCase):
@@ -65,9 +62,9 @@ class AccountViewsTestCase(TestCase):
         self.assertIn("error_content", response.json())
 
     def test_set_password_success(self):
-        user = CustomUser.objects.get(username="testuser1")
-        token = str(ScopeToken.for_user(user, TokenScope.PASSWORD_VERIFY_SCOPE))
-        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = token
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.valid_token()
+        )
         response = self.client.post(
             self.set_password_url, {"password": "NewPassword123!"}
         )
@@ -77,9 +74,9 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(response.json()["message"], "Successfully set new password")
 
     def test_set_password_validation_failure(self):
-        user = CustomUser.objects.get(username="testuser1")
-        token = str(ScopeToken.for_user(user, TokenScope.PASSWORD_VERIFY_SCOPE))
-        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = token
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.valid_token()
+        )
         response = self.client.post(self.set_password_url, {})
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -89,7 +86,7 @@ class AccountViewsTestCase(TestCase):
 
     def test_set_password_invalid_token(self):
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
-            "invalid.token.here"
+            TokenFactory.invalid_signature()
         )
         response = self.client.post(
             self.set_password_url,
@@ -102,17 +99,16 @@ class AccountViewsTestCase(TestCase):
         self.assertIn("error_content", response.json())
 
     def test_set_password_username_not_exist(self):
-        token = create_unknown_user_scope_token()
-        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = token
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.unknown_user()
+        )
         response = self.client.post(
-            self.set_password_url, {"token": token, "password": "NewPassword123!"}
+            self.set_password_url, {"password": "NewPassword123!"}
         )
 
         self.assertEqual(response.status_code, 404)
         self.assertIn("message", response.json())
-        self.assertEqual(
-            response.json()["message"], "User is not existed"
-        )
+        self.assertEqual(response.json()["message"], "User is not existed")
 
     @mock.patch("users.views.account_views.get_token_from_cookie")
     def test_set_password_internal_server_error(self, mock_get_token):
