@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
-import json
 import os
 import environ
 from datetime import timedelta
@@ -33,7 +32,6 @@ ALLOWED_HOSTS = []
 
 
 # Application definition
-
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -83,16 +81,12 @@ WSGI_APPLICATION = "settings.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": os.environ.get("SQL_ENGINE"),
+        "ENGINE": "django.db.backends.mysql",
         "NAME": os.environ.get("SQL_NAME"),
         "USER": os.environ.get("SQL_USER"),
         "PASSWORD": os.environ.get("SQL_PASSWORD"),
         "HOST": os.environ.get("SQL_HOST"),
         "PORT": os.environ.get("SQL_PORT"),
-    },
-    "sqlite": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
     },
 }
 
@@ -140,9 +134,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "users.CustomUser"
 
-# Implement environment
-ENVIRONMENT = os.environ.get("ENVIRONMENT")
-
 # Set up Logging
 LOGGING = {
     "version": 1,
@@ -171,9 +162,7 @@ LOGGING = {
 }
 
 # Customize the Token Timelines
-SCOPE_TOKEN_LIFETIME_MINUTES = timedelta(
-    minutes=int(os.environ.get("SCOPE_TOKEN_LIFETIME_MINUTES"))
-)
+SCOPE_TOKEN_LIFETIME_MINUTES = timedelta(minutes=10)
 
 SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
@@ -182,48 +171,29 @@ SIMPLE_JWT = {
 # Cookie Settings
 COOKIE_SETTINGS = {
     # Custom attributes: Cookie name
-    "AUTH_COOKIE_ACCESS": os.environ.get("AUTH_COOKIE_ACCESS"),
-    "AUTH_COOKIE_REFRESH": os.environ.get("AUTH_COOKIE_REFRESH"),
-    "AUTH_COOKIE_SCOPE": os.environ.get("AUTH_COOKIE_SCOPE"),
+    "AUTH_COOKIE_ACCESS": "access",
+    "AUTH_COOKIE_REFRESH": "refresh",
+    "AUTH_COOKIE_SCOPE": "scope",
     # Custom attributes: A string like "example.com", or None for standard domain cookie.
-    "AUTH_COOKIE_DOMAIN": (
-        None
-        if os.environ.get("AUTH_COOKIE_DOMAIN") == ""
-        else os.environ.get("AUTH_COOKIE_DOMAIN")
-    ),
+    "AUTH_COOKIE_DOMAIN": None,
     # Custom attributes: Whether the auth cookies should be secure (https:// only).
-    "AUTH_COOKIE_SECURE": os.environ.get("AUTH_COOKIE_SECURE"),
+    "AUTH_COOKIE_SECURE": True,
     # Custom attributes: Http only cookie flag.It's not fetch by javascript.
-    "AUTH_COOKIE_HTTP_ONLY": os.environ.get("AUTH_COOKIE_HTTP_ONLY"),
+    "AUTH_COOKIE_HTTP_ONLY": True,
     # Custom attributes: The path of the auth cookie.
-    "AUTH_COOKIE_PATH": os.environ.get("AUTH_COOKIE_PATH"),
+    "AUTH_COOKIE_PATH": "/",
     # Custom attributes: Whether to set the flag restricting cookie leaks on cross-site requests.
     # This can be 'Lax', 'Strict', or None to disable the flag.
-    "AUTH_COOKIE_SAMESITE": os.environ.get("AUTH_COOKIE_SAMESITE"),
+    "AUTH_COOKIE_SAMESITE": None,
 }
 
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_HOST = os.getenv("REDIS_HOST")
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": f"redis://{REDIS_HOST}:6379/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        }
+        },
     }
 }
-
-# Set CORS settings
-# In order to run sonarquebe => we don't actually need CORS related config
-# => ignore those config when ENVIRONMENT == TEST
-if ENVIRONMENT != "TEST":
-    # NOTE: If you are using Chrome, sometime the CORS error appear (I have checked Safari and Brave and no error appears)
-    # Try clearing the cache or disabling CORS preflight cache in Chrome DevTools:
-    # Chrome → DevTools → Network Tab → Disable cache (check box)
-    print("Setup CORS settings...")
-    CORS_ORIGIN_ALLOW_ALL = json.loads(os.environ.get("CORS_ORIGIN_ALLOW_ALL"))
-    CORS_ALLOWED_ORIGINS = json.loads(os.environ.get("FRONTEND_BASE_URL"))
-    CORS_ALLOW_METHODS = json.loads(os.environ.get("CORS_ALLOW_METHODS"))
-    ALLOWED_HOSTS = json.loads(os.environ.get("ALLOWED_HOSTS"))
-    CORS_ALLOW_CREDENTIALS = json.loads(os.environ.get("CORS_ALLOW_CREDENTIALS"))
-    CORS_ALLOW_HEADERS = json.loads(os.environ.get("CORS_ALLOW_HEADERS"))
