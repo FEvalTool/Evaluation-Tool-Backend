@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 
 from users.models import UserQuestionAnswer
 from tests.helpers.setup_mock_accounts import setup_mock_accounts
+from tests.helpers.setup_mock_token import TokenFactory
 
 
 class AuthViewsTestCase(TestCase):
@@ -19,6 +20,7 @@ class AuthViewsTestCase(TestCase):
         self.generate_password_token_url = reverse(
             "auth-generate-password-verification-token"
         )
+        self.verify_token_url = reverse("auth-verify-token")
         setup_mock_accounts()
 
     def test_login_success_first_time_setup_user(self):
@@ -83,9 +85,7 @@ class AuthViewsTestCase(TestCase):
     def test_login_validation_failure(self):
         response = self.client.post(
             self.login_url,
-            {
-                "username": "testuser",
-            },
+            {"username": "testuser"},
             format="json",
         )
 
@@ -205,6 +205,26 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.json()["message"], "Invalid request")
         self.assertIn("error_content", response.json())
 
+    def test_generate_qa_verification_token_question_not_exist(self):
+        response = self.client.post(
+            self.generate_qa_token_url,
+            {
+                "username": "testuser1",
+                "questions": [1, 2, 9999],
+                "answers": ["Fluffy", "Smith", "Andrew"],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Invalid request")
+        self.assertIn("error_content", response.json())
+        self.assertEqual(
+            response.json()["error_content"]["questions"][0],
+            "User security questions doesn't existed",
+        )
+
     @mock.patch("users.views.auth_views.ScopeToken.for_user")
     def test_generate_qa_verification_token_internal_server_error(
         self, mock_create_jwt
@@ -273,9 +293,7 @@ class AuthViewsTestCase(TestCase):
     def test_generate_password_verification_token_validation_failure(self):
         response = self.client.post(
             self.generate_password_token_url,
-            {
-                "username": "testuser1",
-            },
+            {"username": "testuser1"},
             format="json",
         )
 
@@ -299,3 +317,63 @@ class AuthViewsTestCase(TestCase):
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Internal server error")
         self.assertIn("error_content", response.json())
+
+    def test_verify_token_success(self):
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.valid_token()
+        )
+        response = self.client.post(
+            self.verify_token_url,
+            {"token_type": "scope"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Token is valid")
+
+    def test_verify_token_validation_failure(self):
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.valid_token()
+        )
+        response = self.client.post(self.verify_token_url, {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Invalid request")
+        self.assertIn("error_content", response.json())
+
+    def test_verify_token_token_not_found(self):
+        response = self.client.post(
+            self.verify_token_url, {"token_type": "scope"}, format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("message", response.json())
+        self.assertTrue("Token not found in cookie" in response.json()["message"])
+
+    def test_verify_token_token_invalid(self):
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.invalid_signature()
+        )
+        response = self.client.post(
+            self.verify_token_url, {"token_type": "scope"}, format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Invalid token")
+        self.assertIn("error_content", response.json())
+
+    @mock.patch("users.views.auth_views.get_token_from_cookie")
+    def test_verify_token_exception(self, mock_get_token):
+        mock_get_token.side_effect = Exception("Unexpected error")
+        response = self.client.post(
+            self.verify_token_url, {"token_type": "scope"}, format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Internal server error")
+        self.assertIn("error_content", response.json())
+    

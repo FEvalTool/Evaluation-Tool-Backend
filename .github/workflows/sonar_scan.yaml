@@ -50,7 +50,7 @@ jobs:
         SQL_PASSWORD: zergling
         SQL_HOST: 127.0.0.1
         SQL_PORT: 3306
-        REDIS_HOST: localhost
+        REDIS_HOST: 127.0.0.1
     - name: Run SonarCloud Scanner
       uses: SonarSource/sonarqube-scan-action@v4.2.1
       env:

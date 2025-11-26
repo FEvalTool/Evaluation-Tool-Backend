@@ -26,6 +26,7 @@ services:
         build: .
         container_name: evaluation_tool_backend
         environment:
+            - REDIS_HOST=redis
             - SQL_HOST=db
             - SQL_NAME=${SQL_DATABASE}
             - SQL_USER=${SQL_USER}

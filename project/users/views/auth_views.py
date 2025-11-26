@@ -409,11 +409,7 @@ class AuthViewSet(ViewSet):
                     "message": "Token is valid",
                 }
             )
-            return JsonResponse(
-                {
-                    "message": "Token is valid",
-                },
-            )
+            return JsonResponse({"message": "Token is valid"})
         except ValidationError as e:
             logger.error(
                 {

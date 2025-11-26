@@ -187,7 +187,7 @@ COOKIE_SETTINGS = {
     "AUTH_COOKIE_SAMESITE": None,
 }
 
-REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_HOST = os.environ.get("REDIS_HOST")
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
