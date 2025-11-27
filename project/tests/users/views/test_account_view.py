@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from users.constants import TokenScope
+from users.models import CustomUser
 from tests.helpers.setup_mock_accounts import setup_mock_accounts
 from tests.helpers.setup_mock_token import TokenFactory
 
@@ -77,6 +78,28 @@ class AccountViewsTestCase(TestCase):
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Successfully set new password")
 
+    def test_set_password_success_first_time_user(self):
+        user_instance = CustomUser.objects.get(username="testuser")
+        before_update_password_state = user_instance.is_default_password
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+                username="testuser",
+            )
+        )
+        response = self.client.post(
+            self.set_password_url, {"password": "NewPassword123!"}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Successfully set new password")
+        user_instance = CustomUser.objects.get(username="testuser")
+        after_update_password_state = user_instance.is_default_password
+        self.assertNotEqual(before_update_password_state, after_update_password_state)
+        self.assertFalse(after_update_password_state)
+
     def test_set_password_validation_failure(self):
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
             TokenFactory.valid_token(
@@ -90,6 +113,16 @@ class AccountViewsTestCase(TestCase):
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Invalid request")
         self.assertIn("error_content", response.json())
+
+    def test_set_password_token_not_found(self):
+        response = self.client.post(
+            self.set_password_url,
+            {"password": "NewPassword123!"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("message", response.json())
+        self.assertTrue("Token not found in cookie" in response.json()["message"])
 
     def test_set_password_invalid_token(self):
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (

@@ -20,8 +20,8 @@ exp_per_token_type = {
 
 class TokenFactory:
     @staticmethod
-    def valid_token(token_type, scope=None):
-        valid_user = CustomUser.objects.get(username="testuser1")
+    def valid_token(token_type, scope=None, username="testuser1"):
+        valid_user = CustomUser.objects.get(username=username)
         return create_token(user_id=valid_user.id, token_type=token_type, scope=scope)
 
     @staticmethod
