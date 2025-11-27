@@ -14,6 +14,7 @@ exp_per_token_type = {
     settings.COOKIE_SETTINGS[
         "AUTH_COOKIE_REFRESH"
     ]: api_settings.REFRESH_TOKEN_LIFETIME,
+    settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]: api_settings.ACCESS_TOKEN_LIFETIME,
 }
 
 
