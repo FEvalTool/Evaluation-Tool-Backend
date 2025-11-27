@@ -181,7 +181,7 @@ class AccountViewSet(ViewSet):
                 }
             )
             return JsonResponse(
-                {"message": f"User is not existed"},
+                {"message": "User is not existed"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Exception as e:
