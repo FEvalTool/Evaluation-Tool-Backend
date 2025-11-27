@@ -5,6 +5,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from users.constants import TokenScope
 from tests.helpers.setup_mock_accounts import setup_mock_accounts
 from tests.helpers.setup_mock_token import TokenFactory
 
@@ -63,7 +64,10 @@ class AccountViewsTestCase(TestCase):
 
     def test_set_password_success(self):
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
-            TokenFactory.valid_token()
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            )
         )
         response = self.client.post(
             self.set_password_url, {"password": "NewPassword123!"}
@@ -75,7 +79,10 @@ class AccountViewsTestCase(TestCase):
 
     def test_set_password_validation_failure(self):
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
-            TokenFactory.valid_token()
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            )
         )
         response = self.client.post(self.set_password_url, {})
 
@@ -100,7 +107,10 @@ class AccountViewsTestCase(TestCase):
 
     def test_set_password_username_not_exist(self):
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
-            TokenFactory.unknown_user()
+            TokenFactory.unknown_user(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            )
         )
         response = self.client.post(
             self.set_password_url, {"password": "NewPassword123!"}

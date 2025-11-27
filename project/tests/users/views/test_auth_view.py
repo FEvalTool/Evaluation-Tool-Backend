@@ -6,13 +6,16 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from users.models import UserQuestionAnswer
+from users.constants import TokenScope
+from users.redis.tokens import RefreshTokenRedis
 from tests.helpers.setup_mock_accounts import setup_mock_accounts
-from tests.helpers.setup_mock_token import TokenFactory
+from tests.helpers.setup_mock_token import TokenFactory, get_jti_from_jwt
 
 
 class AuthViewsTestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
+        self.client.cookies.clear()
         self.login_url = reverse("auth-login")
         self.generate_qa_token_url = reverse(
             "auth-generate-question-answer-verification-token"
@@ -21,6 +24,7 @@ class AuthViewsTestCase(TestCase):
             "auth-generate-password-verification-token"
         )
         self.verify_token_url = reverse("auth-verify-token")
+        self.refresh_token_url = reverse("auth-refresh-token")
         setup_mock_accounts()
 
     def test_login_success_first_time_setup_user(self):
@@ -320,7 +324,10 @@ class AuthViewsTestCase(TestCase):
 
     def test_verify_token_success(self):
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
-            TokenFactory.valid_token()
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            )
         )
         response = self.client.post(
             self.verify_token_url,
@@ -334,7 +341,10 @@ class AuthViewsTestCase(TestCase):
 
     def test_verify_token_validation_failure(self):
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
-            TokenFactory.valid_token()
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            )
         )
         response = self.client.post(self.verify_token_url, {}, format="json")
 
@@ -376,4 +386,60 @@ class AuthViewsTestCase(TestCase):
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Internal server error")
         self.assertIn("error_content", response.json())
-    
+
+    def test_refresh_token_success(self):
+        refresh_token = TokenFactory.valid_token(
+            token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
+        )
+        jti = get_jti_from_jwt(refresh_token)
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]] = (
+            refresh_token
+        )
+        response = self.client.post(self.refresh_token_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Refresh token successful")
+        # New access token generated
+        access_token_cookie = response.cookies.get(
+            settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]
+        )
+        self.assertIsNotNone(
+            access_token_cookie,
+            f"The {settings.COOKIE_SETTINGS['AUTH_COOKIE_SCOPE']} cookie was not set in the response.",
+        )
+        # New refresh token generated
+        new_jti = get_jti_from_jwt(
+            response.cookies.get(settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]).value
+        )
+        self.assertNotEqual(jti, new_jti)
+        # Old refresh token in blacklist
+        self.assertTrue(RefreshTokenRedis.exists(jti))
+
+    def test_refresh_token_token_not_found(self):
+        response = self.client.post(self.refresh_token_url)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("message", response.json())
+        self.assertTrue("Token not found in cookie" in response.json()["message"])
+
+    def test_refresh_token_token_invalid(self):
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]] = (
+            TokenFactory.invalid_signature()
+        )
+        response = self.client.post(self.refresh_token_url)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Invalid token")
+        self.assertIn("error_content", response.json())
+
+    @mock.patch("users.views.auth_views.get_token_from_cookie")
+    def test_refresh_token_exception(self, mock_get_token):
+        mock_get_token.side_effect = Exception("Unexpected error")
+        response = self.client.post(self.refresh_token_url)
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Internal server error")
+        self.assertIn("error_content", response.json())

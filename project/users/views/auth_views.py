@@ -481,6 +481,7 @@ class AuthViewSet(ViewSet):
             check_token_validity(token, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"])
             # Get new access and refresh token
             serializer = TokenRefreshSerializer(data={"refresh": token})
+            serializer.is_valid()
             # Store old refresh token in blacklist
             store_blacklist_token(
                 token, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
