@@ -17,6 +17,15 @@ jobs:
           MYSQL_ROOT_PASSWORD: zergling
           MYSQL_DATABASE: mysql
         ports: ['3306:3306']
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
    steps:
     - name: Checkout code
       uses: actions/checkout@v2
@@ -33,16 +42,15 @@ jobs:
     - name: Run unit test
       run: |
         cd project
-        coverage run --source='.' manage.py test
+        coverage run --source='.' manage.py test --settings=settings.settings.tests
         coverage xml
       env: 
-        SQL_ENGINE: django.db.backends.mysql
         SQL_NAME: mysql
         SQL_USER: root
         SQL_PASSWORD: zergling
         SQL_HOST: 127.0.0.1
         SQL_PORT: 3306
-        ENVIRONMENT: TEST
+        REDIS_HOST: 127.0.0.1
     - name: Run SonarCloud Scanner
       uses: SonarSource/sonarqube-scan-action@v4.2.1
       env:

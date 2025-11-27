@@ -16,12 +16,10 @@ class UserLoginSerializer(serializers.Serializer):
 
 
 class SetPasswordSerializer(serializers.Serializer):
-    token = serializers.CharField()
     password = serializers.CharField(validators=[UserValidators.password_validator])
 
 
 class SetSecurityQASerializer(serializers.Serializer):
-    token = serializers.CharField()
     questions = serializers.ListField(
         child=serializers.IntegerField(),
         min_length=VALID_SECURITY_QA_NUMS,
@@ -75,3 +73,7 @@ class GetSecurityQAVerificationTokenSerializer(serializers.Serializer):
                 f"Number of Questions must equals to {VALID_SECURITY_QA_NUMS}"
             )
         return value
+
+
+class TokenTypeSerializer(serializers.Serializer):
+    token_type = serializers.CharField()

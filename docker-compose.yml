@@ -1,6 +1,16 @@
 version: '3.8'
 
 services:
+    redis:
+        image: redis:8.2.3-alpine
+        ports:
+            - ${REDIS_LOCAL_PORT}:${REDIS_DOCKER_PORT}
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
     db:
         image: mysql:8
         container_name: evaluation_tool_db
@@ -16,6 +26,7 @@ services:
         build: .
         container_name: evaluation_tool_backend
         environment:
+            - REDIS_HOST=redis
             - SQL_HOST=db
             - SQL_NAME=${SQL_DATABASE}
             - SQL_USER=${SQL_USER}
@@ -29,3 +40,4 @@ services:
             - ${BACKEND_LOCAL_PORT}:${BACKEND_DOCKER_PORT}
         depends_on:
             - db
+            - redis

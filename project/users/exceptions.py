@@ -1,6 +1,5 @@
-class TokenValidationException(Exception):
+class SecurityQAValidationException(Exception):
     pass
 
-
-class SecurityQAValidationException(Exception):
+class TokenNotFoundException(Exception):
     pass

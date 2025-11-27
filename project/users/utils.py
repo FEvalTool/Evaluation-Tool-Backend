@@ -1,10 +1,13 @@
-import jwt
-from datetime import datetime, timedelta, timezone
+import time
 from django.conf import settings
+from rest_framework_simplejwt.tokens import RefreshToken, UntypedToken
+from rest_framework_simplejwt.exceptions import TokenError
 
-from .exceptions import TokenValidationException
-from .constants import TokenScope
+from .exceptions import TokenNotFoundException
 from .models import CustomUser
+from .custom_token import ScopeToken
+from .redis.tokens import RefreshTokenRedis, ScopeTokenRedis
+from .redis.base import RedisBase
 
 
 def generate_username(name):
@@ -34,88 +37,123 @@ def generate_username(name):
     return f"{prefix_username}{len(users)+1}"
 
 
-def create_jwt(data):
+def get_token_from_cookie(request, cookie_name, bypass_token_notfound_error):
     """
-    Generate jwt from data
+    Extract token from cookie
 
     Parameters
     ----------
-    data: dict: payload data
+    request: HttpRequest
+        The HTTP request object.
+    cookie_name: str
+        The name of the cookie to extract the token from.
+    bypass_token_notfound_error: bool
+        If True, do not raise an error if the token is not found.
 
     Returns
     -------
-    str: encoded jwt
-
+    str or None
+        The token if found, otherwise None.
     """
-    payload = {
-        **data,
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.EXPIRES_MINUTES),
-    }
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    token = request.COOKIES.get(cookie_name)
+    if not token and not bypass_token_notfound_error:
+        raise TokenNotFoundException(f"Token not found in cookie: {cookie_name}")
+    return token
 
 
-def decode_and_verify_jwt(token, verify_function):
+token_properties = {
+    "refresh": {
+        "token_class": RefreshToken,
+        "redis_class": RefreshTokenRedis,
+    },
+    "scope": {
+        "token_class": ScopeToken,
+        "redis_class": ScopeTokenRedis,
+    },
+}
+
+
+def store_blacklist_token(token, token_type):
     """
-    Decode and verify jwt
+    Store blacklisted token in redis
 
     Parameters
     ----------
-    token: str: jwt token
-    verify_function: func: function to verify payload
+    token: str
+        The jwt token.
+    token_type: int
+        Type of jwt token (refresh/scope).
 
     Returns
     -------
-    dict: decoded payload
-
+    None
     """
-    try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+    if token_type not in token_properties:
+        raise ValueError("Invalid token type: {}".format(token_type))
+    redis_class = token_properties[token_type]["redis_class"]
+    token_class = token_properties[token_type]["token_class"]
+    token_info = token_class(token)
+
+    current_timestamp = time.time()
+    expiration_timestamp = token_info["exp"]
+
+    ttl = int(expiration_timestamp - current_timestamp)
+    jti = token_info["jti"]
+    redis_class.store(jti, ttl)
+
+
+def check_token_validity(token, token_type):
+    """
+    Check if token is blacklisted
+
+    Parameters
+    ----------
+    token: str
+        The jwt token.
+    token_type: int
+        Type of jwt token (refresh/scope).
+    Returns
+    -------
+    None
+    """
+    redis_class = RedisBase
+    token_class = UntypedToken
+    if token_type in token_properties:
+        redis_class = token_properties[token_type]["redis_class"]
+        token_class = token_properties[token_type]["token_class"]
+    # This step also verifies the token validity (e.g., signature, expiration)
+    token_info = token_class(token)
+
+    jti = token_info["jti"]
+    if redis_class.exists(jti):
+        raise TokenError("Token is blacklisted")
+
+
+def set_cookie_response(cookie_item_list, res):
+    """
+    Set token in token list in response cookie
+    Item in cookie_item_list must be dictionary with the following keys:
+    - 'cookie_key': str
+    - 'cookie_value': str
+    - 'cookie_max_age': int
+    Parameters
+    ----------
+    cookie_item_list: list
+        List of cookie item going to store in respone
+    res: response.Response
+        Response
+    Returns
+    -------
+    response.Response
+    """
+    for item in cookie_item_list:
+        res.set_cookie(
+            key=item["cookie_key"],
+            value=item["cookie_value"],
+            max_age=item["cookie_max_age"],
+            secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
+            httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
+            samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
+            path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
         )
-        verify_function(payload)
-        return payload
-    except jwt.ExpiredSignatureError:
-        raise TokenValidationException("Token expired")
-    except jwt.InvalidTokenError as e:
-        raise TokenValidationException(f"Invalid token: {e}")
-
-
-def verify_is_able_to_set_password(payload):
-    """
-    Function to verify if the user who send payload is verified to set password
-
-    Parameters
-    ----------
-    payload: dict: payload decoded from jwt
-
-    Returns
-    -------
-    None
-
-    """
-    scope = payload.get("scope", None)
-    if scope not in [
-        TokenScope.PASSWORD_VERIFY_SCOPE,
-        TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
-    ]:
-        raise TokenValidationException(f"Invalid scope - {scope}")
-
-
-def verify_is_able_to_set_security_qa(payload):
-    """
-    Function to verify if the user who send payload is verified to set security question/answer
-
-    Parameters
-    ----------
-    payload: dict: payload decoded from jwt
-
-    Returns
-    -------
-    None
-
-    """
-    scope = payload.get("scope", None)
-    if scope not in [
-        TokenScope.PASSWORD_VERIFY_SCOPE,
-    ]:
-        raise TokenValidationException(f"Invalid scope - {scope}")
+    return res
