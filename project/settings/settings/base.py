@@ -162,7 +162,7 @@ LOGGING = {
 }
 
 # Customize the Token Timelines
-SCOPE_TOKEN_LIFETIME_MINUTES = timedelta(minutes=10)
+SCOPE_TOKEN_LIFETIME = timedelta(minutes=10)
 
 SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,

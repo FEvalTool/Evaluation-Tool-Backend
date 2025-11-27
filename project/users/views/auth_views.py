@@ -25,6 +25,7 @@ from ..utils import (
     get_token_from_cookie,
     store_blacklist_token,
     check_token_validity,
+    set_cookie_response,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ logger = logging.getLogger(__name__)
 class AuthViewSet(ViewSet):
     """
     Viewset for support Authentication and Authorization related APIs
-    (Login, Logout, Generate Token)
+    (Login, Logout, Generate and Delete Token)
     """
 
     @action(detail=False, methods=["post"], url_path="login")
@@ -56,48 +57,49 @@ class AuthViewSet(ViewSet):
             # Validate password
             if not user.check_password(serializer.validated_data["password"]):
                 raise CustomUser.DoesNotExist
-            res = response.Response()
+            # Prepare cookie metadata and data for response
             response_data = {"message": "Successfully Login"}
             user_data = {"id": user.id, "username": user.username}
-            # Create and store token in cookie
+            cookie_item_list = []
             if user.is_default_password or not user.is_security_question_set:
                 # When user login for the first time, create scope jwt token
                 scope_token = ScopeToken.for_user(
                     user, TokenScope.PASSWORD_VERIFY_SCOPE
                 )
-                res.set_cookie(
-                    key=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
-                    value=str(scope_token),
-                    max_age=api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
-                    secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
-                    httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
-                    samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
-                    path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
+                cookie_item_list.append(
+                    {
+                        "cookie_key": settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                        "cookie_value": str(scope_token),
+                        "cookie_max_age": settings.SCOPE_TOKEN_LIFETIME.total_seconds(),
+                    }
                 )
                 user_data["first_time_setup"] = True
                 user_data["is_password_setup"] = not user.is_default_password
                 user_data["is_security_qa_setup"] = user.is_security_question_set
             else:
                 refresh = RefreshToken.for_user(user)
-                res.set_cookie(
-                    key=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
-                    value=str(refresh.access_token),
-                    max_age=api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
-                    secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
-                    httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
-                    samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
-                    path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
-                )
-                res.set_cookie(
-                    key=settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"],
-                    value=str(refresh),
-                    max_age=api_settings.REFRESH_TOKEN_LIFETIME.total_seconds(),
-                    secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
-                    httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
-                    samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
-                    path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
+                cookie_item_list.extend(
+                    [
+                        {
+                            "cookie_key": settings.COOKIE_SETTINGS[
+                                "AUTH_COOKIE_ACCESS"
+                            ],
+                            "cookie_value": str(refresh.access_token),
+                            "cookie_max_age": api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
+                        },
+                        {
+                            "cookie_key": settings.COOKIE_SETTINGS[
+                                "AUTH_COOKIE_REFRESH"
+                            ],
+                            "cookie_value": str(refresh),
+                            "cookie_max_age": api_settings.REFRESH_TOKEN_LIFETIME.total_seconds(),
+                        },
+                    ]
                 )
             response_data["user"] = user_data
+            # Store cookie and data in response
+            res = response.Response()
+            res = set_cookie_response(cookie_item_list, res)
             res.data = response_data
             logger.info(
                 {
@@ -207,14 +209,15 @@ class AuthViewSet(ViewSet):
             token = str(token_instance)
             exp = token_instance.payload.get("exp")
             res = response.Response()
-            res.set_cookie(
-                key=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
-                value=token,
-                max_age=settings.SCOPE_TOKEN_LIFETIME_MINUTES.total_seconds(),
-                secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
-                httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
-                samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
-                path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
+            res = set_cookie_response(
+                [
+                    {
+                        "cookie_key": settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                        "cookie_value": token,
+                        "cookie_max_age": settings.SCOPE_TOKEN_LIFETIME.total_seconds(),
+                    }
+                ],
+                res,
             )
             # Convert exp to milliseconds
             res.data = {"message": "Token generated successfully", "exp": exp * 1000}
@@ -323,14 +326,15 @@ class AuthViewSet(ViewSet):
             token = str(token_instance)
             exp = token_instance.payload.get("exp")
             res = response.Response()
-            res.set_cookie(
-                key=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
-                value=token,
-                max_age=settings.SCOPE_TOKEN_LIFETIME_MINUTES.total_seconds(),
-                secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
-                httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
-                samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
-                path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
+            res = set_cookie_response(
+                [
+                    {
+                        "cookie_key": settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                        "cookie_value": token,
+                        "cookie_max_age": settings.SCOPE_TOKEN_LIFETIME.total_seconds(),
+                    }
+                ],
+                res,
             )
             # Convert exp to milliseconds
             res.data = {"message": "Token generated successfully", "exp": exp * 1000}
@@ -486,26 +490,23 @@ class AuthViewSet(ViewSet):
             store_blacklist_token(
                 token, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
             )
-            res = response.Response()
+            # Prepare cookie metadata and data for response
             response_data = {"message": "Refresh token successful"}
-            res.set_cookie(
-                key=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
-                value=serializer.validated_data["access"],
-                max_age=api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
-                secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
-                httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
-                samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
-                path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
-            )
-            res.set_cookie(
-                key=settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"],
-                value=serializer.validated_data.get("refresh", token),
-                max_age=api_settings.REFRESH_TOKEN_LIFETIME.total_seconds(),
-                secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
-                httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
-                samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
-                path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
-            )
+            cookie_item_list = [
+                {
+                    "cookie_key": settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
+                    "cookie_value": serializer.validated_data["access"],
+                    "cookie_max_age": api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
+                },
+                {
+                    "cookie_key": settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"],
+                    "cookie_value": serializer.validated_data["refresh"],
+                    "cookie_max_age": api_settings.REFRESH_TOKEN_LIFETIME.total_seconds(),
+                },
+            ]
+            # Store cookie and data in response
+            res = response.Response()
+            res = set_cookie_response(cookie_item_list, res)
             res.data = response_data
             logger.info(
                 {

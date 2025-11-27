@@ -8,9 +8,7 @@ from django.conf import settings
 from users.models import CustomUser
 
 exp_per_token_type = {
-    settings.COOKIE_SETTINGS[
-        "AUTH_COOKIE_SCOPE"
-    ]: settings.SCOPE_TOKEN_LIFETIME_MINUTES,
+    settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]: settings.SCOPE_TOKEN_LIFETIME,
     settings.COOKIE_SETTINGS[
         "AUTH_COOKIE_REFRESH"
     ]: api_settings.REFRESH_TOKEN_LIFETIME,

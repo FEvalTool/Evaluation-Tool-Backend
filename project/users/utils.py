@@ -1,4 +1,5 @@
 import time
+from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken, UntypedToken
 from rest_framework_simplejwt.exceptions import TokenError
 
@@ -126,3 +127,33 @@ def check_token_validity(token, token_type):
     jti = token_info["jti"]
     if redis_class.exists(jti):
         raise TokenError("Token is blacklisted")
+
+
+def set_cookie_response(cookie_item_list, res):
+    """
+    Set token in token list in response cookie
+    Item in cookie_item_list must be dictionary with the following keys:
+    - 'cookie_key': str
+    - 'cookie_value': str
+    - 'cookie_max_age': int
+    Parameters
+    ----------
+    cookie_item_list: list
+        List of cookie item going to store in respone
+    res: response.Response
+        Response
+    Returns
+    -------
+    response.Response
+    """
+    for item in cookie_item_list:
+        res.set_cookie(
+            key=item["cookie_key"],
+            value=item["cookie_value"],
+            max_age=item["cookie_max_age"],
+            secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
+            httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
+            samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
+            path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
+        )
+    return res

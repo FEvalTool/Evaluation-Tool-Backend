@@ -5,7 +5,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 
 class ScopeToken(Token):
     token_type = "scope"
-    lifetime = settings.SCOPE_TOKEN_LIFETIME_MINUTES
+    lifetime = settings.SCOPE_TOKEN_LIFETIME
 
     @classmethod
     def for_user(cls, user, scope):
