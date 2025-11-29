@@ -9,13 +9,13 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.exceptions import TokenError
 
+from common.constants import ErrorTypes
 from ..models import CustomUser, UserQuestionAnswer
 from ..serializers import (
     InitAccountSerializer,
     SetPasswordSerializer,
     GetSecurityQuestionParamsSerializer,
 )
-from common.constants import ErrorTypes
 from ..constants import EventType, TokenScope
 from ..utils import generate_username, get_token_from_cookie, check_token_validity
 from ..custom_token import ScopeToken
