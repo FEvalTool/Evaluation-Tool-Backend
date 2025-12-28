@@ -8,11 +8,13 @@ from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import UntypedToken
 
 from common.constants import ErrorTypes
 from ..models import CustomUser, UserQuestionAnswer
 from ..serializers import (
     InitAccountSerializer,
+    GetAccountInfoSerializer,
     SetPasswordSerializer,
     SetSecurityQASerializer,
     GetSecurityQuestionParamsSerializer,
@@ -83,6 +85,70 @@ class AccountViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.CREATE_USER_ACCOUNT,
+                    "error_type": ErrorTypes.EXCEPTION,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {"message": "Internal server error", "error_content": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=False, methods=["get"], url_path="info")
+    def get_user_info(self, request):
+        """
+        Endpoint to get user infomation
+        """
+        try:
+            # Try to find token in cookie
+            # (access token priority, if no access token, find scope token)
+            token = get_token_from_cookie(
+                request, settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"], True
+            )
+            if not token:
+                token = get_token_from_cookie(
+                    request, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"], False
+                )
+            payload = UntypedToken(token)
+            user = CustomUser.objects.get(id=payload.get("user_id"))
+            user_data = GetAccountInfoSerializer(user).data
+            # Add user setup status if user is newly created one
+            if user.is_default_password or not user.is_security_question_set:
+                user_data["first_time_setup"] = True
+                user_data["is_password_setup"] = not user.is_default_password
+                user_data["is_security_qa_setup"] = user.is_security_question_set
+            return JsonResponse(
+                {"message": "Retrieve user info success", "user": user_data},
+                status=status.HTTP_200_OK,
+            )
+        except TokenNotFoundException as e:
+            logger.error(
+                {
+                    "event_type": EventType.GET_USER_INFO,
+                    "error_type": ErrorTypes.TOKEN_NOT_FOUND,
+                    "error_content": str(e),
+                }
+            )
+            return JsonResponse(
+                {"message": "Token not found"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except CustomUser.DoesNotExist:
+            logger.error(
+                {
+                    "event_type": EventType.GET_USER_INFO,
+                    "error_type": ErrorTypes.UNEXISTED,
+                    "error_content": f"User with id {payload.get('user_id')} is not existed",
+                }
+            )
+            return JsonResponse(
+                {"message": "User not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            logger.error(
+                {
+                    "event_type": EventType.GET_USER_INFO,
                     "error_type": ErrorTypes.EXCEPTION,
                     "error_content": str(e),
                 }
