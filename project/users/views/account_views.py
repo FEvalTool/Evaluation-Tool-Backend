@@ -94,10 +94,11 @@ class AccountViewSet(ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    @action(detail=False, methods=["get"], url_path="info")
-    def get_user_info(self, request):
+    @action(detail=False, methods=["get"], url_path="setup_status")
+    def get_user_setup_status(self, request):
         """
-        Endpoint to get user infomation
+        Endpoint to get user setup status
+        (password setup status/security qa setup status)
         """
         try:
             # Try to find token in cookie
@@ -111,7 +112,7 @@ class AccountViewSet(ViewSet):
                 )
             payload = UntypedToken(token)
             user = CustomUser.objects.get(id=payload.get("user_id"))
-            user_data = GetAccountInfoSerializer(user).data
+            user_data = {"id": user.id, "username": user.username}
             # Add user setup status if user is newly created one
             if user.is_default_password or not user.is_security_question_set:
                 user_data["first_time_setup"] = True
