@@ -66,6 +66,7 @@ class AuthViewSet(ViewSet):
                 scope_token = ScopeToken.for_user(
                     user, TokenScope.PASSWORD_VERIFY_SCOPE
                 )
+                exp = scope_token.payload.get("exp")
                 cookie_item_list.append(
                     {
                         "cookie_key": settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
@@ -76,6 +77,7 @@ class AuthViewSet(ViewSet):
                 user_data["first_time_setup"] = True
                 user_data["is_password_setup"] = not user.is_default_password
                 user_data["is_security_qa_setup"] = user.is_security_question_set
+                response_data["scope_exp"] = exp * 1000
             else:
                 refresh = RefreshToken.for_user(user)
                 cookie_item_list.extend(
