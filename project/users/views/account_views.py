@@ -132,7 +132,7 @@ class AccountViewSet(ViewSet):
             )
             return JsonResponse(
                 {"message": "Token not found"},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         except CustomUser.DoesNotExist:
             logger.error(
@@ -226,7 +226,7 @@ class AccountViewSet(ViewSet):
             )
             return JsonResponse(
                 {"message": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         except TokenError as e:
             logger.error(
@@ -352,7 +352,7 @@ class AccountViewSet(ViewSet):
             )
             return JsonResponse(
                 {"message": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         except TokenError as e:
             logger.error(

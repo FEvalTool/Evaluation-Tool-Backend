@@ -441,7 +441,7 @@ class AuthViewSet(ViewSet):
             )
             return JsonResponse(
                 {"message": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         except TokenError as e:
             logger.error(
@@ -527,7 +527,7 @@ class AuthViewSet(ViewSet):
             )
             return JsonResponse(
                 {"message": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         except TokenError as e:
             logger.error(
@@ -599,7 +599,7 @@ class AuthViewSet(ViewSet):
             )
             return JsonResponse(
                 {"message": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         except Exception as e:
             logger.error(
@@ -666,7 +666,7 @@ class AuthViewSet(ViewSet):
             )
             return JsonResponse(
                 {"message": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         except Exception as e:
             logger.error(
