@@ -12,14 +12,15 @@ services:
             retries: 5
 
     db:
-        image: mysql:8
+        image: postgres:18.1-alpine
         container_name: evaluation_tool_db
         restart: unless-stopped
         ports:
             - ${SQL_LOCAL_PORT}:${SQL_DOCKER_PORT}
         environment:
-            - MYSQL_ROOT_PASSWORD=${SQL_ROOT_PASSWORD}
-            - MYSQL_DATABASE=${SQL_DATABASE}
+            - POSTGRES_USER=${SQL_USER}
+            - POSTGRES_PASSWORD=${SQL_ROOT_PASSWORD}
+            - POSTGRES_DB=${SQL_DATABASE}
 
     backend:
         image: eval_tool_backend
