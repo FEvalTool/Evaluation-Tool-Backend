@@ -4,7 +4,7 @@ services:
     redis:
         image: redis:8.2.3-alpine
         ports:
-            - ${REDIS_LOCAL_PORT}:${REDIS_DOCKER_PORT}
+            - 6380:${REDIS_PORT}
         healthcheck:
             test: ["CMD", "redis-cli", "ping"]
             interval: 10s
@@ -12,32 +12,26 @@ services:
             retries: 5
 
     db:
-        image: mysql:8
-        container_name: evaluation_tool_db
+        image: postgres:18.1-alpine
+        container_name: user_management_db
         restart: unless-stopped
         ports:
-            - ${SQL_LOCAL_PORT}:${SQL_DOCKER_PORT}
-        environment:
-            - MYSQL_ROOT_PASSWORD=${SQL_ROOT_PASSWORD}
-            - MYSQL_DATABASE=${SQL_DATABASE}
+            - 5433:${POSTGRES_PORT}
+        env_file:
+            - .env
 
     backend:
-        image: eval_tool_backend
+        image: user_management_service
         build: .
-        container_name: evaluation_tool_backend
-        environment:
-            - REDIS_HOST=redis
-            - SQL_HOST=db
-            - SQL_NAME=${SQL_DATABASE}
-            - SQL_USER=${SQL_USER}
-            - SQL_PASSWORD=${SQL_ROOT_PASSWORD}
-            - SQL_PORT=${SQL_DOCKER_PORT}
+        container_name: user_management_service
+        env_file:
+            - .env 
         # Let it sleep, we will set it inside docker container
         command: sleep infinity
         volumes:
             - ./project:/project/
         ports:
-            - ${BACKEND_LOCAL_PORT}:${BACKEND_DOCKER_PORT}
+            - 8001:8000
         depends_on:
             - db
             - redis
