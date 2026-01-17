@@ -599,7 +599,7 @@ class AuthViewSet(ViewSet):
             )
             return JsonResponse(
                 {"message": str(e)},
-                status=status.HTTP_401_UNAUTHORIZED,
+                status=status.HTTP_409_CONFLICT,
             )
         except Exception as e:
             logger.error(
@@ -666,7 +666,7 @@ class AuthViewSet(ViewSet):
             )
             return JsonResponse(
                 {"message": str(e)},
-                status=status.HTTP_401_UNAUTHORIZED,
+                status=status.HTTP_409_CONFLICT,
             )
         except Exception as e:
             logger.error(

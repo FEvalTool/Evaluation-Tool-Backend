@@ -360,7 +360,7 @@ class AuthViewsTestCase(TestCase):
             self.verify_token_url, {"token_type": "scope"}, format="json"
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertIn("message", response.json())
         self.assertTrue("Token not found in cookie" in response.json()["message"])
 
@@ -421,7 +421,7 @@ class AuthViewsTestCase(TestCase):
     def test_refresh_token_token_not_found(self):
         response = self.client.post(self.refresh_token_url)
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertIn("message", response.json())
         self.assertTrue("Token not found in cookie" in response.json()["message"])
 
@@ -474,7 +474,7 @@ class AuthViewsTestCase(TestCase):
             self.delete_scope_token_url, {BYPASS_TOKEN_NOTFOUND: False}, format="json"
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
         self.assertIn("message", response.json())
         self.assertTrue("Token not found in cookie" in response.json()["message"])
 
@@ -528,7 +528,7 @@ class AuthViewsTestCase(TestCase):
             self.logout_url, {BYPASS_TOKEN_NOTFOUND: False}, format="json"
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
         self.assertIn("message", response.json())
         self.assertTrue("Token not found in cookie" in response.json()["message"])
 

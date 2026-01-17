@@ -266,7 +266,7 @@ class AccountViewSet(ViewSet):
             )
 
     @action(detail=False, methods=["get", "post"], url_path="security_questions")
-    def security_questions(self, request):
+    def user_security_questions(self, request):
         if request.method == "GET":
             return self.get_user_security_questions(request)
         if request.method == "POST":

@@ -17,8 +17,8 @@ class AccountViewsTestCase(TestCase):
         self.client.cookies.clear()
         self.account_url = reverse("account-list")
         self.set_password_url = reverse("account-set-password")
-        self.get_user_security_questions_url = reverse(
-            "account-get-user-security-questions"
+        self.user_security_questions_url = reverse(
+            "account-user-security-questions"
         )
         # Set up user info for account creation tests
         self.user_info = {
@@ -120,7 +120,7 @@ class AccountViewsTestCase(TestCase):
             {"password": "NewPassword123!"},
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertIn("message", response.json())
         self.assertTrue("Token not found in cookie" in response.json()["message"])
 
@@ -167,7 +167,7 @@ class AccountViewsTestCase(TestCase):
 
     def test_get_user_security_questions_success(self):
         response = self.client.get(
-            self.get_user_security_questions_url, {"username": "testuser1"}
+            self.user_security_questions_url, {"username": "testuser1"}
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -183,7 +183,7 @@ class AccountViewsTestCase(TestCase):
 
     def test_get_user_security_questions_first_time_user_not_allowed(self):
         response = self.client.get(
-            self.get_user_security_questions_url, {"username": "testuser"}
+            self.user_security_questions_url, {"username": "testuser"}
         )
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -194,7 +194,7 @@ class AccountViewsTestCase(TestCase):
 
     def test_get_user_security_questions_username_not_exist(self):
         response = self.client.get(
-            self.get_user_security_questions_url, {"username": "unknownuser"}
+            self.user_security_questions_url, {"username": "unknownuser"}
         )
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -204,7 +204,7 @@ class AccountViewsTestCase(TestCase):
         )
 
     def test_get_user_security_questions_validation_failure(self):
-        response = self.client.get(self.get_user_security_questions_url)
+        response = self.client.get(self.user_security_questions_url)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("message", response.json())
@@ -215,7 +215,7 @@ class AccountViewsTestCase(TestCase):
     def test_get_user_security_questions_internal_server_error(self, mock_get_user):
         mock_get_user.side_effect = Exception("Unexpected error")
         response = self.client.get(
-            self.get_user_security_questions_url, {"username": "testuser1"}
+            self.user_security_questions_url, {"username": "testuser1"}
         )
 
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
