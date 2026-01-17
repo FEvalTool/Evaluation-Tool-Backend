@@ -1,9 +1,9 @@
-FROM python:3.11.3-slim-bullseye
-# Fix bug: https://stackoverflow.com/a/76560124
+FROM python:3.14.2-slim
+
+# Fix bug: https://stackoverflow.com/a/67404591
 RUN apt-get update \
-    && apt-get upgrade -y \
-    && apt-get install -y gcc default-libmysqlclient-dev pkg-config \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get -y install libpq-dev gcc
+
 # Explain: https://stackoverflow.com/a/59812588
 ENV PYTHONUNBUFFERED=1
 

@@ -7,7 +7,6 @@ django-redis==6.0.0
 
 coverage==7.6.9
 
-mysqlclient==2.2.4
+psycopg2==2.9.11
 black==24.8.0 
-formulas==1.2.8
 regex==2024.9.11
