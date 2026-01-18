@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from users.constants import TokenScope
-from users.models import CustomUser
+from users.models import CustomUser, SecurityQuestion
 from tests.helpers.setup_mock_accounts import setup_mock_accounts
 from tests.helpers.setup_mock_token import TokenFactory
 
@@ -17,9 +17,7 @@ class AccountViewsTestCase(TestCase):
         self.client.cookies.clear()
         self.account_url = reverse("account-list")
         self.set_password_url = reverse("account-set-password")
-        self.user_security_questions_url = reverse(
-            "account-user-security-questions"
-        )
+        self.user_security_questions_url = reverse("account-user-security-questions")
         # Set up user info for account creation tests
         self.user_info = {
             "name": "New User",
@@ -158,6 +156,138 @@ class AccountViewsTestCase(TestCase):
         mock_get_token.side_effect = Exception("Unexpected error")
         response = self.client.post(
             self.set_password_url, {"password": "NewPassword123!"}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Internal server error")
+        self.assertIn("error_content", response.json())
+
+    def test_set_security_qa_success(self):
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            )
+        )
+        official_security_questions = SecurityQuestion.objects.filter(status="Official")
+        question_ids = [question.id for question in official_security_questions]
+        response = self.client.post(
+            self.user_security_questions_url,
+            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("message", response.json())
+        self.assertEqual(
+            response.json()["message"],
+            "Successfully set new security question and answer",
+        )
+
+    def test_security_qa_success_first_time_user(self):
+        user_instance = CustomUser.objects.get(username="testuser")
+        before_update_security_qa_state = user_instance.is_security_question_set
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+                username="testuser",
+            )
+        )
+        official_security_questions = SecurityQuestion.objects.filter(status="Official")
+        question_ids = [question.id for question in official_security_questions]
+        response = self.client.post(
+            self.user_security_questions_url,
+            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("message", response.json())
+        self.assertEqual(
+            response.json()["message"],
+            "Successfully set new security question and answer",
+        )
+        user_instance = CustomUser.objects.get(username="testuser")
+        after_update_security_qa_state = user_instance.is_default_password
+        self.assertNotEqual(
+            before_update_security_qa_state, after_update_security_qa_state
+        )
+        self.assertTrue(after_update_security_qa_state)
+
+    def test_set_security_qa_validation_failure(self):
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            )
+        )
+        response = self.client.post(
+            self.user_security_questions_url,
+            {},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Invalid request")
+        self.assertIn("error_content", response.json())
+
+    def test_set_security_qa_token_not_found(self):
+        official_security_questions = SecurityQuestion.objects.filter(status="Official")
+        question_ids = [question.id for question in official_security_questions]
+        response = self.client.post(
+            self.user_security_questions_url,
+            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn("message", response.json())
+        self.assertTrue("Token not found in cookie" in response.json()["message"])
+
+    def test_set_security_qa_invalid_token(self):
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.invalid_signature()
+        )
+
+        official_security_questions = SecurityQuestion.objects.filter(status="Official")
+        question_ids = [question.id for question in official_security_questions]
+        response = self.client.post(
+            self.user_security_questions_url,
+            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Invalid token")
+        self.assertIn("error_content", response.json())
+
+    def test_set_security_qa_user_not_exist(self):
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.unknown_user(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            )
+        )
+
+        official_security_questions = SecurityQuestion.objects.filter(status="Official")
+        question_ids = [question.id for question in official_security_questions]
+        response = self.client.post(
+            self.user_security_questions_url,
+            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "User is not existed")
+
+    @mock.patch("users.views.account_views.get_token_from_cookie")
+    def test_set_security_qa_internal_server_error(self, mock_get_token):
+        mock_get_token.side_effect = Exception("Unexpected error")
+
+        official_security_questions = SecurityQuestion.objects.filter(status="Official")
+        question_ids = [question.id for question in official_security_questions]
+        response = self.client.post(
+            self.user_security_questions_url,
+            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
         )
 
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)

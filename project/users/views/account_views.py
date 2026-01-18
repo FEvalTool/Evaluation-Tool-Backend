@@ -345,7 +345,7 @@ class AccountViewSet(ViewSet):
         except TokenNotFoundException as e:
             logger.error(
                 {
-                    "event_type": EventType.SET_PASSWORD,
+                    "event_type": EventType.SET_SECURITY_QA,
                     "error_type": ErrorTypes.TOKEN_NOT_FOUND,
                     "error_content": str(e),
                 }
@@ -371,11 +371,11 @@ class AccountViewSet(ViewSet):
                 {
                     "event_type": EventType.SET_SECURITY_QA,
                     "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": f"User with username {payload['username']} is not existed",
+                    "error_content": f"User with id {payload['user_id']} is not existed",
                 }
             )
             return JsonResponse(
-                {"message": f"User with username {payload['username']} is not existed"},
+                {"message": "User is not existed"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Exception as e:
