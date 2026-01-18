@@ -147,9 +147,9 @@ class AccountViewsTestCase(TestCase):
             self.set_password_url, {"password": "NewPassword123!"}
         )
 
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 401)
         self.assertIn("message", response.json())
-        self.assertEqual(response.json()["message"], "User is not existed")
+        self.assertEqual(response.json()["message"], "Account invalid or deleted")
 
     @mock.patch("users.views.account_views.get_token_from_cookie")
     def test_set_password_internal_server_error(self, mock_get_token):
@@ -275,9 +275,9 @@ class AccountViewsTestCase(TestCase):
             {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
         )
 
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 401)
         self.assertIn("message", response.json())
-        self.assertEqual(response.json()["message"], "User is not existed")
+        self.assertEqual(response.json()["message"], "Account invalid or deleted")
 
     @mock.patch("users.views.account_views.get_token_from_cookie")
     def test_set_security_qa_internal_server_error(self, mock_get_token):
@@ -319,7 +319,7 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertIn("message", response.json())
         self.assertEqual(
-            response.json()["message"], "User testuser hasn't setup account"
+            response.json()["message"], "Account with username testuser hasn't setup account"
         )
 
     def test_get_user_security_questions_username_not_exist(self):
@@ -330,7 +330,7 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertIn("message", response.json())
         self.assertEqual(
-            response.json()["message"], "User with username unknownuser is not existed"
+            response.json()["message"], "Account with username unknownuser is not existed"
         )
 
     def test_get_user_security_questions_validation_failure(self):

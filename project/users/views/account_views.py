@@ -139,11 +139,11 @@ class AccountViewSet(ViewSet):
                 {
                     "event_type": EventType.GET_USER_INFO,
                     "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": f"User with id {payload.get('user_id')} is not existed",
+                    "error_content": f"Account with id {payload.get('user_id')} is not existed",
                 }
             )
             return JsonResponse(
-                {"message": "User not found"},
+                {"message": "Account invalid or deleted"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Exception as e:
@@ -245,12 +245,12 @@ class AccountViewSet(ViewSet):
                 {
                     "event_type": EventType.SET_PASSWORD,
                     "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": f"User with id {payload.get('user_id')} is not existed",
+                    "error_content": f"Account with id {payload.get('user_id')} is not existed",
                 }
             )
             return JsonResponse(
-                {"message": "User is not existed"},
-                status=status.HTTP_404_NOT_FOUND,
+                {"message": "Account invalid or deleted"},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         except Exception as e:
             logger.error(
@@ -371,12 +371,12 @@ class AccountViewSet(ViewSet):
                 {
                     "event_type": EventType.SET_SECURITY_QA,
                     "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": f"User with id {payload['user_id']} is not existed",
+                    "error_content": f"Account with id {payload['user_id']} is not existed",
                 }
             )
             return JsonResponse(
-                {"message": "User is not existed"},
-                status=status.HTTP_404_NOT_FOUND,
+                {"message": "Account invalid or deleted"},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         except Exception as e:
             logger.error(
@@ -414,13 +414,13 @@ class AccountViewSet(ViewSet):
                     {
                         "event_type": EventType.GET_USER_SECURITY_QUESTIONS,
                         "error_type": ErrorTypes.UNAUTHORIZED,
-                        "error_content": f"User {username} hasn't setup account",
+                        "error_content": f"Account with username {username} hasn't setup account",
                         "is_security_question_set": user.is_security_question_set,
                         "is_default_password": user.is_default_password,
                     }
                 )
                 return JsonResponse(
-                    {"message": f"User {username} hasn't setup account"},
+                    {"message": f"Account with username {username} hasn't setup account"},
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
             security_questions = UserQuestionAnswer.objects.filter(
@@ -463,11 +463,11 @@ class AccountViewSet(ViewSet):
                 {
                     "event_type": EventType.GET_USER_SECURITY_QUESTIONS,
                     "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": f"User with username {username} is not existed",
+                    "error_content": f"Account with username {username} is not existed",
                 }
             )
             return JsonResponse(
-                {"message": f"User with username {username} is not existed"},
+                {"message": f"Account with username {username} is not existed"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Exception as e:
