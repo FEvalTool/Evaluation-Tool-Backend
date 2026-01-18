@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from common.models import Status
 from .constants import VALID_SECURITY_QA_NUMS
 from .validators import UserValidators
 from .models import CustomUser, SecurityQuestion
@@ -8,6 +9,11 @@ class InitAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ["name", "phone_number", "dob", "identity_number"]
+
+class GetAccountInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ["username", "name", "phone_number", "dob", "identity_number"]
 
 
 class UserLoginSerializer(serializers.Serializer):
@@ -77,3 +83,17 @@ class GetSecurityQAVerificationTokenSerializer(serializers.Serializer):
 
 class TokenTypeSerializer(serializers.Serializer):
     token_type = serializers.CharField()
+
+
+class CreateSecurityQuestionSerializer(serializers.Serializer):
+    content = serializers.CharField()
+
+
+class SecurityQuestionQuerySerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=Status.choices, required=False)
+
+
+class SecurityQuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SecurityQuestion
+        fields = "__all__"

@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from users.constants import TokenScope
-from users.models import CustomUser
+from users.models import CustomUser, SecurityQuestion
 from tests.helpers.setup_mock_accounts import setup_mock_accounts
 from tests.helpers.setup_mock_token import TokenFactory
 
@@ -17,9 +17,8 @@ class AccountViewsTestCase(TestCase):
         self.client.cookies.clear()
         self.account_url = reverse("account-list")
         self.set_password_url = reverse("account-set-password")
-        self.get_user_security_questions_url = reverse(
-            "account-get-user-security-questions"
-        )
+        self.user_security_questions_url = reverse("account-user-security-questions")
+        self.get_user_setup_status_url = reverse("account-get-user-setup-status")
         # Set up user info for account creation tests
         self.user_info = {
             "name": "New User",
@@ -57,6 +56,91 @@ class AccountViewsTestCase(TestCase):
         mock_generate_username.side_effect = Exception("Unexpected error")
 
         response = self.client.post(self.account_url, self.user_info)
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Internal server error")
+        self.assertIn("error_content", response.json())
+
+    def test_get_first_time_user_setup_status_success(self):
+        user_instance = CustomUser.objects.get(username="testuser")
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+                username="testuser",
+            )
+        )
+
+        response = self.client.get(self.get_user_setup_status_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("message", response.json())
+        self.assertEqual(
+            response.json()["message"], "Retrieve user setup status success"
+        )
+        self.assertIn("user", response.json())
+        self.assertEqual(response.json()["user"]["id"], user_instance.id)
+        self.assertEqual(response.json()["user"]["username"], user_instance.username)
+        self.assertEqual(response.json()["user"]["first_time_setup"], True)
+        self.assertEqual(response.json()["user"]["is_password_setup"], False)
+        self.assertEqual(response.json()["user"]["is_security_qa_setup"], False)
+
+    def test_get_normal_user_setup_status_success(self):
+        user_instance = CustomUser.objects.get(username="testuser1")
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]] = (
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
+                username="testuser1",
+            )
+        )
+
+        response = self.client.get(self.get_user_setup_status_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("message", response.json())
+        self.assertEqual(
+            response.json()["message"], "Retrieve user setup status success"
+        )
+        self.assertIn("user", response.json())
+        self.assertEqual(response.json()["user"]["id"], user_instance.id)
+        self.assertEqual(response.json()["user"]["username"], user_instance.username)
+        self.assertNotIn("first_time_setup", response.json()["user"])
+        self.assertNotIn("is_password_setup", response.json()["user"])
+        self.assertNotIn("is_security_qa_setup", response.json()["user"])
+
+    def test_get_user_setup_status_token_not_found(self):
+        response = self.client.get(self.get_user_setup_status_url)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Token not found")
+
+    def test_get_user_setup_status_user_not_exist(self):
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.unknown_user(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            )
+        )
+
+        response = self.client.get(self.get_user_setup_status_url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Account invalid or deleted")
+
+    @mock.patch("users.views.account_views.get_token_from_cookie")
+    def test_get_user_setup_status_internal_server_error(self, mock_get_token):
+        mock_get_token.side_effect = Exception("Unexpected error")
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            )
+        )
+
+        response = self.client.get(self.get_user_setup_status_url)
 
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIn("message", response.json())
@@ -120,7 +204,7 @@ class AccountViewsTestCase(TestCase):
             {"password": "NewPassword123!"},
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertIn("message", response.json())
         self.assertTrue("Token not found in cookie" in response.json()["message"])
 
@@ -138,7 +222,7 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(response.json()["message"], "Invalid token")
         self.assertIn("error_content", response.json())
 
-    def test_set_password_username_not_exist(self):
+    def test_set_password_user_not_exist(self):
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
             TokenFactory.unknown_user(
                 token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
@@ -149,9 +233,9 @@ class AccountViewsTestCase(TestCase):
             self.set_password_url, {"password": "NewPassword123!"}
         )
 
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 401)
         self.assertIn("message", response.json())
-        self.assertEqual(response.json()["message"], "User is not existed")
+        self.assertEqual(response.json()["message"], "Account invalid or deleted")
 
     @mock.patch("users.views.account_views.get_token_from_cookie")
     def test_set_password_internal_server_error(self, mock_get_token):
@@ -165,9 +249,141 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(response.json()["message"], "Internal server error")
         self.assertIn("error_content", response.json())
 
+    def test_set_security_qa_success(self):
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            )
+        )
+        official_security_questions = SecurityQuestion.objects.filter(status="Official")
+        question_ids = [question.id for question in official_security_questions]
+        response = self.client.post(
+            self.user_security_questions_url,
+            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("message", response.json())
+        self.assertEqual(
+            response.json()["message"],
+            "Successfully set new security question and answer",
+        )
+
+    def test_security_qa_success_first_time_user(self):
+        user_instance = CustomUser.objects.get(username="testuser")
+        before_update_security_qa_state = user_instance.is_security_question_set
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+                username="testuser",
+            )
+        )
+        official_security_questions = SecurityQuestion.objects.filter(status="Official")
+        question_ids = [question.id for question in official_security_questions]
+        response = self.client.post(
+            self.user_security_questions_url,
+            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("message", response.json())
+        self.assertEqual(
+            response.json()["message"],
+            "Successfully set new security question and answer",
+        )
+        user_instance = CustomUser.objects.get(username="testuser")
+        after_update_security_qa_state = user_instance.is_default_password
+        self.assertNotEqual(
+            before_update_security_qa_state, after_update_security_qa_state
+        )
+        self.assertTrue(after_update_security_qa_state)
+
+    def test_set_security_qa_validation_failure(self):
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            )
+        )
+        response = self.client.post(
+            self.user_security_questions_url,
+            {},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Invalid request")
+        self.assertIn("error_content", response.json())
+
+    def test_set_security_qa_token_not_found(self):
+        official_security_questions = SecurityQuestion.objects.filter(status="Official")
+        question_ids = [question.id for question in official_security_questions]
+        response = self.client.post(
+            self.user_security_questions_url,
+            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn("message", response.json())
+        self.assertTrue("Token not found in cookie" in response.json()["message"])
+
+    def test_set_security_qa_invalid_token(self):
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.invalid_signature()
+        )
+
+        official_security_questions = SecurityQuestion.objects.filter(status="Official")
+        question_ids = [question.id for question in official_security_questions]
+        response = self.client.post(
+            self.user_security_questions_url,
+            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Invalid token")
+        self.assertIn("error_content", response.json())
+
+    def test_set_security_qa_user_not_exist(self):
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.unknown_user(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            )
+        )
+
+        official_security_questions = SecurityQuestion.objects.filter(status="Official")
+        question_ids = [question.id for question in official_security_questions]
+        response = self.client.post(
+            self.user_security_questions_url,
+            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Account invalid or deleted")
+
+    @mock.patch("users.views.account_views.get_token_from_cookie")
+    def test_set_security_qa_internal_server_error(self, mock_get_token):
+        mock_get_token.side_effect = Exception("Unexpected error")
+
+        official_security_questions = SecurityQuestion.objects.filter(status="Official")
+        question_ids = [question.id for question in official_security_questions]
+        response = self.client.post(
+            self.user_security_questions_url,
+            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertIn("message", response.json())
+        self.assertEqual(response.json()["message"], "Internal server error")
+        self.assertIn("error_content", response.json())
+
     def test_get_user_security_questions_success(self):
         response = self.client.get(
-            self.get_user_security_questions_url, {"username": "testuser1"}
+            self.user_security_questions_url, {"username": "testuser1"}
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -183,28 +399,30 @@ class AccountViewsTestCase(TestCase):
 
     def test_get_user_security_questions_first_time_user_not_allowed(self):
         response = self.client.get(
-            self.get_user_security_questions_url, {"username": "testuser"}
+            self.user_security_questions_url, {"username": "testuser"}
         )
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertIn("message", response.json())
         self.assertEqual(
-            response.json()["message"], "User testuser hasn't setup account"
+            response.json()["message"],
+            "Account with username testuser hasn't setup account",
         )
 
     def test_get_user_security_questions_username_not_exist(self):
         response = self.client.get(
-            self.get_user_security_questions_url, {"username": "unknownuser"}
+            self.user_security_questions_url, {"username": "unknownuser"}
         )
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertIn("message", response.json())
         self.assertEqual(
-            response.json()["message"], "User with username unknownuser is not existed"
+            response.json()["message"],
+            "Account with username unknownuser is not existed",
         )
 
     def test_get_user_security_questions_validation_failure(self):
-        response = self.client.get(self.get_user_security_questions_url)
+        response = self.client.get(self.user_security_questions_url)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("message", response.json())
@@ -215,7 +433,7 @@ class AccountViewsTestCase(TestCase):
     def test_get_user_security_questions_internal_server_error(self, mock_get_user):
         mock_get_user.side_effect = Exception("Unexpected error")
         response = self.client.get(
-            self.get_user_security_questions_url, {"username": "testuser1"}
+            self.user_security_questions_url, {"username": "testuser1"}
         )
 
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
