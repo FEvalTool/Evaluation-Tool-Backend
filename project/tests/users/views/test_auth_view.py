@@ -1,3 +1,4 @@
+import time
 from unittest import mock
 from django.test import TestCase
 from django.urls import reverse
@@ -30,6 +31,8 @@ class AuthViewsTestCase(TestCase):
         setup_mock_accounts()
 
     def test_login_success_first_time_setup_user(self):
+        now = int(time.time())
+        expected_token_expiry = (now + (10 * 60)) * 1000  # 10 minute expire scope token
         response = self.client.post(
             self.login_url,
             {"username": "testuser", "password": "correctpassword"},
@@ -37,11 +40,16 @@ class AuthViewsTestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("user", response.json())
         user_data = response.json()["user"]
         self.assertEqual(user_data["username"], "testuser")
         self.assertEqual(user_data["first_time_setup"], True)
         self.assertEqual(user_data["is_password_setup"], False)
         self.assertEqual(user_data["is_security_qa_setup"], False)
+        self.assertIn("scope_exp", response.json())
+        self.assertAlmostEqual(
+            response.json()["scope_exp"], expected_token_expiry, delta=2
+        )
         scope_token_cookie = response.cookies.get(
             settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
         )
@@ -119,6 +127,9 @@ class AuthViewsTestCase(TestCase):
         questions_answers = UserQuestionAnswer.objects.all()
         questions = [qa.question.id for qa in questions_answers]
         answers = [qa.answer for qa in questions_answers]
+
+        now = int(time.time())
+        expected_token_expiry = (now + (10 * 60)) * 1000  # 10 minute expire scope token
         response = self.client.post(
             self.generate_qa_token_url,
             {
@@ -132,6 +143,8 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Token generated successfully")
+        self.assertIn("exp", response.json())
+        self.assertAlmostEqual(response.json()["exp"], expected_token_expiry, delta=2)
         scope_token_cookie = response.cookies.get(
             settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
         )
@@ -255,6 +268,8 @@ class AuthViewsTestCase(TestCase):
         self.assertIn("error_content", response.json())
 
     def test_generate_password_verification_token_success(self):
+        now = int(time.time())
+        expected_token_expiry = (now + (10 * 60)) * 1000  # 10 minute expire scope token
         response = self.client.post(
             self.generate_password_token_url,
             {"username": "testuser1", "password": "cORRectPassw0rd!"},
@@ -264,6 +279,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Token generated successfully")
+        self.assertAlmostEqual(response.json()["exp"], expected_token_expiry, delta=2)
         scope_token_cookie = response.cookies.get(
             settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
         )
