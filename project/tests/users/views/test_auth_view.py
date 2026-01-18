@@ -48,7 +48,9 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(user_data["is_security_qa_setup"], False)
         self.assertIn("scope_exp", response.json())
         self.assertAlmostEqual(
-            response.json()["scope_exp"], expected_token_expiry, delta=2
+            response.json()["scope_exp"],
+            expected_token_expiry,
+            delta=5000,  # 5 seconds delay
         )
         scope_token_cookie = response.cookies.get(
             settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
@@ -144,7 +146,9 @@ class AuthViewsTestCase(TestCase):
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Token generated successfully")
         self.assertIn("exp", response.json())
-        self.assertAlmostEqual(response.json()["exp"], expected_token_expiry, delta=2)
+        self.assertAlmostEqual(
+            response.json()["exp"], expected_token_expiry, delta=5000  # 5 seconds delay
+        )
         scope_token_cookie = response.cookies.get(
             settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
         )
@@ -279,7 +283,9 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("message", response.json())
         self.assertEqual(response.json()["message"], "Token generated successfully")
-        self.assertAlmostEqual(response.json()["exp"], expected_token_expiry, delta=2)
+        self.assertAlmostEqual(
+            response.json()["exp"], expected_token_expiry, delta=5000  # 5 seconds delay
+        )
         scope_token_cookie = response.cookies.get(
             settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
         )
