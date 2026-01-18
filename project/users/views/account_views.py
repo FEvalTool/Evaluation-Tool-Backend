@@ -119,7 +119,7 @@ class AccountViewSet(ViewSet):
                 user_data["is_password_setup"] = not user.is_default_password
                 user_data["is_security_qa_setup"] = user.is_security_question_set
             return JsonResponse(
-                {"message": "Retrieve user info success", "user": user_data},
+                {"message": "Retrieve user setup status success", "user": user_data},
                 status=status.HTTP_200_OK,
             )
         except TokenNotFoundException as e:
@@ -420,7 +420,9 @@ class AccountViewSet(ViewSet):
                     }
                 )
                 return JsonResponse(
-                    {"message": f"Account with username {username} hasn't setup account"},
+                    {
+                        "message": f"Account with username {username} hasn't setup account"
+                    },
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
             security_questions = UserQuestionAnswer.objects.filter(
