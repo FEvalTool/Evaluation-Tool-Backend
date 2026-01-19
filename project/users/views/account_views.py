@@ -119,7 +119,7 @@ class AccountViewSet(ViewSet):
                 user_data["is_password_setup"] = not user.is_default_password
                 user_data["is_security_qa_setup"] = user.is_security_question_set
             return JsonResponse(
-                {"message": "Retrieve user setup status success", "user": user_data},
+                {"message": "Retrieve user setup status success", "data": user_data},
                 status=status.HTTP_200_OK,
             )
         except TokenNotFoundException as e:
@@ -442,7 +442,7 @@ class AccountViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Retrieve user security questions successful",
-                    "questions": questions_list,
+                    "data": questions_list,
                 }
             )
         except ValidationError as e:

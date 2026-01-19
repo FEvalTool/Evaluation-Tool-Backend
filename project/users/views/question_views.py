@@ -106,7 +106,7 @@ class QuestionViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Successfully retrieve security questions",
-                    "questions": serializer.data,
+                    "data": serializer.data,
                 },
                 status=status.HTTP_200_OK,
             )

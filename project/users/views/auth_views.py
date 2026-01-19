@@ -77,7 +77,7 @@ class AuthViewSet(ViewSet):
                 user_data["first_time_setup"] = True
                 user_data["is_password_setup"] = not user.is_default_password
                 user_data["is_security_qa_setup"] = user.is_security_question_set
-                response_data["scope_exp"] = exp * 1000
+                response_data["scope_token_exp"] = exp * 1000
             else:
                 refresh = RefreshToken.for_user(user)
                 cookie_item_list.extend(
@@ -98,7 +98,7 @@ class AuthViewSet(ViewSet):
                         },
                     ]
                 )
-            response_data["user"] = user_data
+            response_data["data"] = user_data
             # Store cookie and data in response
             res = response.Response()
             res = set_cookie_response(cookie_item_list, res)
@@ -222,7 +222,10 @@ class AuthViewSet(ViewSet):
                 res,
             )
             # Convert exp to milliseconds
-            res.data = {"message": "Token generated successfully", "exp": exp * 1000}
+            res.data = {
+                "message": "Token generated successfully",
+                "data": {"scope_token_exp": exp * 1000},
+            }
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
@@ -339,7 +342,10 @@ class AuthViewSet(ViewSet):
                 res,
             )
             # Convert exp to milliseconds
-            res.data = {"message": "Token generated successfully", "exp": exp * 1000}
+            res.data = {
+                "message": "Token generated successfully",
+                "data": {"scope_token_exp": exp * 1000},
+            }
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
