@@ -137,7 +137,14 @@ AUTH_USER_MODEL = "users.CustomUser"
 
 # Set up error response format
 REST_FRAMEWORK = {
-    "EXCEPTION_HANDLER": "drf_standardized_errors.handler.exception_handler"
+    "EXCEPTION_HANDLER": "drf_standardized_errors.handler.exception_handler",
+    # References:
+    # https://github.com/encode/django-rest-framework/issues/5968#issuecomment-1607370805
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
 }
 DRF_STANDARDIZED_ERRORS = {
     "EXCEPTION_FORMATTER_CLASS": "common.exceptions.CustomExceptionFormatter"
