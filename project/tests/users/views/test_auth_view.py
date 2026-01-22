@@ -18,10 +18,10 @@ from tests.helpers.setup_mock_accounts import (
     NEW_USER_PASSWORD,
 )
 from tests.helpers.setup_mock_token import TokenFactory, get_jti_from_jwt
-from tests.helpers.utils import get_error_key_response
+from tests.helpers.utils import get_error_key_response, CustomAPITestCase
 
 
-class AuthViewsTestCase(TestCase):
+class AuthViewsTestCase(CustomAPITestCase):
     def setUp(self):
         self.client = APIClient()
         self.client.cookies.clear()
@@ -48,8 +48,9 @@ class AuthViewsTestCase(TestCase):
             {"username": NEW_USER_USERNAME, "password": NEW_USER_PASSWORD},
             format="json",
         )
-        # Assert response status
+        # Assert response status + structure
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response, has_data=True)
         # Assert response body - message
         self.assertEqual("Successfully Login", response.json()["message"])
         # Assert response body - user data
@@ -83,8 +84,9 @@ class AuthViewsTestCase(TestCase):
             {"username": ACTIVE_USER_USERNAME, "password": ACTIVE_USER_PASSWORD},
             format="json",
         )
-        # Assert response status
+        # Assert response status + structure
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response, has_data=True)
         # Assert response body - message
         self.assertEqual("Successfully Login", response.json()["message"])
         # Assert response body
@@ -119,9 +121,9 @@ class AuthViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "authentication_failed")
         self.assertEqual(response.json()["message"], "Invalid username or password")
-        self.assertNotIn("error", response.json())
 
     def test_login_validation_failure(self):
         # Act
@@ -132,8 +134,8 @@ class AuthViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "validation")
-        self.assertIn("error", response.json())
         error_item_keys = get_error_key_response(response)
         self.assertIn("password", error_item_keys)
 
@@ -158,6 +160,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "error")
 
     def test_generate_qa_verification_token_success(self):
@@ -178,8 +181,9 @@ class AuthViewsTestCase(TestCase):
             format="json",
         )
 
-        # Assert response status
+        # Assert response status + structure
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response, has_data=True)
         # Assert response body - message
         self.assertEqual(response.json()["message"], "Token generated successfully")
         # Assert response body - scope token expire time
@@ -211,6 +215,7 @@ class AuthViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "permission_denied")
         self.assertEqual(
             response.json()["message"],
@@ -233,6 +238,7 @@ class AuthViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "authentication_failed")
         self.assertEqual(
             response.json()["message"], "Invalid security credentials provided"
@@ -251,6 +257,7 @@ class AuthViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "authentication_failed")
         self.assertEqual(
             response.json()["message"], "Invalid security credentials provided"
@@ -268,8 +275,9 @@ class AuthViewsTestCase(TestCase):
             format="json",
         )
         # Assert response
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "validation")
-        self.assertIn("error", response.json())
         error_item_keys = get_error_key_response(response)
         self.assertIn("questions", error_item_keys)
         self.assertIn("answers", error_item_keys)
@@ -290,12 +298,13 @@ class AuthViewsTestCase(TestCase):
             },
             format="json",
         )
-        # Assert response
+        # Assert response status + structure
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertResponseStructure(response)
+        # Assert response body
         self.assertEqual(response.json()["code"], "validation")
-        self.assertIn("error", response.json())
         error_item_keys = get_error_key_response(response)
         self.assertIn("questions", error_item_keys)
-        # Assert custom response error content
         questions_val_err = [
             error
             for error in response.json()["error"]
@@ -343,6 +352,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "error")
 
     def test_generate_password_verification_token_success(self):
@@ -355,8 +365,9 @@ class AuthViewsTestCase(TestCase):
             {"username": ACTIVE_USER_USERNAME, "password": ACTIVE_USER_PASSWORD},
             format="json",
         )
-        # Assert response status
+        # Assert response status + structure
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response, has_data=True)
         # Assert response body - message
         self.assertEqual(response.json()["message"], "Token generated successfully")
         # Assert response body - scope token expire time
@@ -384,6 +395,7 @@ class AuthViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "permission_denied")
         self.assertEqual(
             response.json()["message"],
@@ -399,6 +411,7 @@ class AuthViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "authentication_failed")
         self.assertEqual(
             response.json()["message"], "Invalid security credentials provided"
@@ -413,6 +426,7 @@ class AuthViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "authentication_failed")
         self.assertEqual(
             response.json()["message"], "Invalid security credentials provided"
@@ -427,8 +441,8 @@ class AuthViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "validation")
-        self.assertIn("error", response.json())
         error_item_keys = get_error_key_response(response)
         self.assertIn("password", error_item_keys)
 
@@ -460,6 +474,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "error")
 
     def test_verify_token_success(self):
@@ -479,6 +494,7 @@ class AuthViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["message"], "Token is valid")
 
     def test_verify_token_validation_failure(self):
@@ -486,8 +502,8 @@ class AuthViewsTestCase(TestCase):
         response = self.client.post(self.verify_token_url, {}, format="json")
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "validation")
-        self.assertIn("error", response.json())
         error_item_keys = get_error_key_response(response)
         self.assertIn("token_type", error_item_keys)
 
@@ -498,6 +514,7 @@ class AuthViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "not_authenticated")
         self.assertTrue("Token not found in cookie" in response.json()["message"])
 
@@ -512,6 +529,7 @@ class AuthViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "authentication_failed")
 
     @mock.patch("users.views.auth_views.logger")
@@ -533,6 +551,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "error")
 
     def test_refresh_token_success(self):
@@ -549,6 +568,7 @@ class AuthViewsTestCase(TestCase):
         response = self.client.post(self.refresh_token_url)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["message"], "Refresh token successful")
         # Assert if new access token generated ok
         access_token_cookie = response.cookies.get(
@@ -571,6 +591,7 @@ class AuthViewsTestCase(TestCase):
         response = self.client.post(self.refresh_token_url)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "not_authenticated")
         self.assertTrue("Token not found in cookie" in response.json()["message"])
 
@@ -583,6 +604,7 @@ class AuthViewsTestCase(TestCase):
         response = self.client.post(self.refresh_token_url)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "authentication_failed")
 
     @mock.patch("users.views.auth_views.logger")
@@ -602,6 +624,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "error")
 
     def test_delete_scope_token_success(self):
@@ -617,6 +640,7 @@ class AuthViewsTestCase(TestCase):
         response = self.client.post(self.delete_scope_token_url)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response)
         self.assertEqual(
             response.json()["message"], "Scope tokens deleted successfully"
         )
@@ -636,6 +660,7 @@ class AuthViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "conflict")
         self.assertTrue("Token not found in cookie" in response.json()["message"])
 
@@ -656,6 +681,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "error")
 
     def test_logout_success(self):
@@ -679,6 +705,7 @@ class AuthViewsTestCase(TestCase):
         response = self.client.post(self.logout_url)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["message"], "Logout successfully")
         # Assert if access and refresh token in cookie are deleted
         access_token_cookie = response.cookies.get(
@@ -703,7 +730,8 @@ class AuthViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
-        self.assertIn(response.json()["code"], "conflict")
+        self.assertResponseStructure(response)
+        self.assertEqual(response.json()["code"], "conflict")
         self.assertTrue("Token not found in cookie" in response.json()["message"])
 
     @mock.patch("users.views.auth_views.logger")
@@ -723,4 +751,5 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "error")

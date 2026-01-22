@@ -2,7 +2,6 @@ from unittest import mock
 from django.contrib.auth.hashers import check_password
 from django.urls import reverse
 from django.conf import settings
-from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -15,10 +14,10 @@ from tests.helpers.setup_mock_accounts import (
     NEW_USER_USERNAME,
 )
 from tests.helpers.setup_mock_token import TokenFactory
-from tests.helpers.utils import get_error_key_response
+from tests.helpers.utils import get_error_key_response, CustomAPITestCase
 
 
-class AccountViewsTestCase(TestCase):
+class AccountViewsTestCase(CustomAPITestCase):
     def setUp(self):
         self.client = APIClient()
         self.client.cookies.clear()
@@ -28,7 +27,7 @@ class AccountViewsTestCase(TestCase):
         self.get_user_setup_status_url = reverse("account-get-user-setup-status")
         # Set up user info for account creation tests
         self.user_info = {
-            "name": "New User",
+            "name": "New Test User",
             "phone_number": "0392123456",
             "dob": "1990-01-01",
             "identity_number": "001234567890",
@@ -40,11 +39,13 @@ class AccountViewsTestCase(TestCase):
     def test_create_account_success(self):
         # Act
         response = self.client.post(self.account_url, self.user_info)
-        # Assert response
+        # Assert response status + structure
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertResponseStructure(response, has_data=True)
+        # Assert response body
         self.assertEqual(response.json()["message"], "Successfully intialize account")
         self.assertIn("username", response.json()["data"])
-        self.assertEqual("UserN1", response.json()["data"]["username"])
+        self.assertEqual("UserNT1", response.json()["data"]["username"])
         self.assertIn("password", response.json()["data"])
 
     def test_create_account_validation_failure(self):
@@ -55,8 +56,8 @@ class AccountViewsTestCase(TestCase):
         response = self.client.post(self.account_url, invalid_user_info)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "validation")
-        self.assertIn("error", response.json())
         error_item_keys = get_error_key_response(response)
         self.assertIn("phone_number", error_item_keys)
 
@@ -79,6 +80,7 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "error")
 
     def test_get_new_user_setup_status_success(self):
@@ -93,8 +95,10 @@ class AccountViewsTestCase(TestCase):
         )
         # Act
         response = self.client.get(self.get_user_setup_status_url)
-        # Assert response
+        # Assert response status + structure
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response, has_data=True)
+        # Assert response body
         self.assertEqual(
             response.json()["message"], "Retrieve user setup status success"
         )
@@ -115,8 +119,10 @@ class AccountViewsTestCase(TestCase):
         )
         # Act
         response = self.client.get(self.get_user_setup_status_url)
-        # Assert response
+        # Assert response status + structure
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response, has_data=True)
+        # Assert response body
         self.assertEqual(
             response.json()["message"], "Retrieve user setup status success"
         )
@@ -131,6 +137,7 @@ class AccountViewsTestCase(TestCase):
         response = self.client.get(self.get_user_setup_status_url)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "not_authenticated")
         self.assertEqual(response.json()["message"], "Token not found in cookie")
 
@@ -143,6 +150,7 @@ class AccountViewsTestCase(TestCase):
         response = self.client.get(self.get_user_setup_status_url)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "authentication_failed")
 
     def test_get_user_setup_status_user_not_exist(self):
@@ -157,6 +165,7 @@ class AccountViewsTestCase(TestCase):
         response = self.client.get(self.get_user_setup_status_url)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "not_found")
         self.assertEqual(response.json()["message"], "Account invalid or deleted")
 
@@ -179,6 +188,7 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "error")
 
     def test_set_password_success_active_user(self):
@@ -197,6 +207,7 @@ class AccountViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["message"], "Successfully set new password")
         # Assert password change success
         user_instance = CustomUser.objects.get(username=ACTIVE_USER_USERNAME)
@@ -218,6 +229,7 @@ class AccountViewsTestCase(TestCase):
         response = self.client.post(self.set_password_url, {"password": new_password})
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["message"], "Successfully set new password")
         # Assert password change success
         user_instance = CustomUser.objects.get(username=NEW_USER_USERNAME)
@@ -231,8 +243,8 @@ class AccountViewsTestCase(TestCase):
         response = self.client.post(self.set_password_url, {})
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "validation")
-        self.assertIn("error", response.json())
         error_item_keys = get_error_key_response(response)
         self.assertIn("password", error_item_keys)
 
@@ -244,6 +256,7 @@ class AccountViewsTestCase(TestCase):
         )
         # Check response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "not_authenticated")
         self.assertTrue("Token not found in cookie" in response.json()["message"])
 
@@ -259,6 +272,7 @@ class AccountViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "authentication_failed")
 
     def test_set_password_user_not_exist(self):
@@ -275,6 +289,7 @@ class AccountViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, 404)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "not_found")
         self.assertEqual(response.json()["message"], "Account invalid or deleted")
 
@@ -295,6 +310,7 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "error")
 
     def test_set_security_qa_success_active_user(self):
@@ -315,6 +331,7 @@ class AccountViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response)
         self.assertEqual(
             response.json()["message"],
             "Successfully set new security question and answer",
@@ -340,6 +357,7 @@ class AccountViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response)
         self.assertIn("message", response.json())
         self.assertEqual(
             response.json()["message"],
@@ -361,8 +379,8 @@ class AccountViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "validation")
-        self.assertIn("error", response.json())
         error_item_keys = get_error_key_response(response)
         self.assertIn("questions", error_item_keys)
         self.assertIn("answers", error_item_keys)
@@ -378,6 +396,7 @@ class AccountViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "not_authenticated")
         self.assertTrue("Token not found in cookie" in response.json()["message"])
 
@@ -395,6 +414,7 @@ class AccountViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "authentication_failed")
 
     def test_set_security_qa_user_not_exist(self):
@@ -414,6 +434,7 @@ class AccountViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, 404)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "not_found")
         self.assertEqual(response.json()["message"], "Account invalid or deleted")
 
@@ -439,6 +460,7 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "error")
 
     def test_get_user_security_questions_success(self):
@@ -446,8 +468,10 @@ class AccountViewsTestCase(TestCase):
         response = self.client.get(
             self.user_security_questions_url, {"username": ACTIVE_USER_USERNAME}
         )
-        # Assert response
+        # Assert response status + structure
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response, has_data=True)
+        # Assert response body
         self.assertEqual(
             response.json()["message"], "Retrieve user security questions successful"
         )
@@ -463,6 +487,7 @@ class AccountViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "permission_denied")
         self.assertEqual(
             response.json()["message"],
@@ -476,6 +501,7 @@ class AccountViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "not_found")
         self.assertEqual(response.json()["message"], "Account invalid or deleted")
 
@@ -484,8 +510,8 @@ class AccountViewsTestCase(TestCase):
         response = self.client.get(self.user_security_questions_url)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "validation")
-        self.assertIn("error", response.json())
         error_item_keys = get_error_key_response(response)
         self.assertIn("username", error_item_keys)
 
@@ -514,4 +540,5 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "error")

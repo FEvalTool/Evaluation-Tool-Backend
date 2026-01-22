@@ -1,16 +1,15 @@
 from unittest import mock
 from django.urls import reverse
-from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from tests.helpers.setup_mock_accounts import create_security_questions
-from tests.helpers.utils import get_error_key_response
+from tests.helpers.utils import get_error_key_response, CustomAPITestCase
 from users.constants import EventType
 from common.constants import ErrorTypes
 
 
-class SecurityQuestionsViewsTestCase(TestCase):
+class SecurityQuestionsViewsTestCase(CustomAPITestCase):
     def setUp(self):
         self.client = APIClient()
         self.get_security_questions_url = reverse("question-list")
@@ -21,6 +20,7 @@ class SecurityQuestionsViewsTestCase(TestCase):
         response = self.client.get(self.get_security_questions_url)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response, has_data=True)
         self.assertEqual(
             response.json()["message"], "Successfully retrieve security questions"
         )
@@ -33,6 +33,7 @@ class SecurityQuestionsViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response, has_data=True)
         self.assertEqual(
             response.json()["message"], "Successfully retrieve security questions"
         )
@@ -48,8 +49,8 @@ class SecurityQuestionsViewsTestCase(TestCase):
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "validation")
-        self.assertIn("error", response.json())
         error_item_keys = get_error_key_response(response)
         self.assertIn("status", error_item_keys)
 
@@ -74,4 +75,5 @@ class SecurityQuestionsViewsTestCase(TestCase):
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "error")
