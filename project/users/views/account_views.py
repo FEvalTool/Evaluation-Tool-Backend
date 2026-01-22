@@ -168,6 +168,9 @@ class AccountViewSet(ViewSet):
                     "message": "Begin set new password process",
                 }
             )
+            # Validate new password
+            serializer = SetPasswordSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
             # Extract token from request and verify scope
             token = get_token_from_cookie(
                 request, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"], False
@@ -180,9 +183,6 @@ class AccountViewSet(ViewSet):
                     TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
                 ]
             )
-            # Validate new password
-            serializer = SetPasswordSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
             # Update new password for user
             user = CustomUser.objects.get(id=payload.get("user_id"))
             user.set_password(serializer.validated_data["password"])
@@ -262,6 +262,9 @@ class AccountViewSet(ViewSet):
                     "message": "Begin set security question answer process",
                 }
             )
+            # Validate security qa
+            serializer = SetSecurityQASerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
             # Extract token from request and verify scope
             token = get_token_from_cookie(
                 request, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"], False
@@ -269,9 +272,6 @@ class AccountViewSet(ViewSet):
             check_token_validity(token, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"])
             payload = ScopeToken(token)
             payload.verify_scope([TokenScope.PASSWORD_VERIFY_SCOPE])
-            # Validate security qa
-            serializer = SetSecurityQASerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
             # Delete old security question answer of current user
             # and replace with the new one
             logger.info(
