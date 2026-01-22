@@ -6,12 +6,14 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from users.constants import TokenScope, EventType
-from users.models import CustomUser, SecurityQuestion
+from users.models import CustomUser, SecurityQuestion, UserQuestionAnswer
 from common.constants import ErrorTypes
 from tests.helpers.setup_mock_accounts import (
     setup_mock_accounts,
     ACTIVE_USER_USERNAME,
     NEW_USER_USERNAME,
+    ACTIVE_USER_PASSWORD,
+    NEW_USER_PASSWORD,
 )
 from tests.helpers.setup_mock_token import TokenFactory
 from tests.helpers.utils import get_error_key_response, CustomAPITestCase
@@ -35,6 +37,12 @@ class AccountViewsTestCase(CustomAPITestCase):
 
         # Set up a user in the database for set password tests,
         setup_mock_accounts()
+        # Get users and security questions for testing
+        self.new_user = CustomUser.objects.get(username=NEW_USER_USERNAME)
+        self.active_user = CustomUser.objects.get(username=ACTIVE_USER_USERNAME)
+        self.security_questions = SecurityQuestion.objects.filter(
+            status="Official"
+        ).order_by("id")
 
     def test_create_account_success(self):
         # Act
@@ -192,6 +200,8 @@ class AccountViewsTestCase(CustomAPITestCase):
         self.assertEqual(response.json()["code"], "error")
 
     def test_set_password_success_active_user(self):
+        # Assert user password before update
+        self.assertTrue(check_password(ACTIVE_USER_PASSWORD, self.active_user.password))
         # Arrange: set scope token in cookie
         new_password = "NewPassword123!"
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
@@ -205,18 +215,19 @@ class AccountViewsTestCase(CustomAPITestCase):
         response = self.client.post(
             self.set_password_url, {"password": "NewPassword123!"}
         )
+        self.active_user.refresh_from_db()  # Refresh user data
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertResponseStructure(response)
         self.assertEqual(response.json()["message"], "Successfully set new password")
         # Assert password change success
-        user_instance = CustomUser.objects.get(username=ACTIVE_USER_USERNAME)
-        self.assertTrue(check_password(new_password, user_instance.password))
+        self.assertTrue(check_password(new_password, self.active_user.password))
 
     def test_set_password_success_new_user(self):
-        # Arrange: password status before password change and scope cookie set
-        user_instance = CustomUser.objects.get(username=NEW_USER_USERNAME)
-        before_update_password_state = user_instance.is_default_password
+        # Assert user password before update
+        self.assertTrue(check_password(NEW_USER_PASSWORD, self.new_user.password))
+        self.assertTrue(self.new_user.is_default_password)
+        # Arrange: set scope token in cookie
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
             TokenFactory.valid_token(
                 token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
@@ -227,16 +238,14 @@ class AccountViewsTestCase(CustomAPITestCase):
         new_password = "NewPassword123!"
         # Act
         response = self.client.post(self.set_password_url, {"password": new_password})
+        self.new_user.refresh_from_db()  # Refresh user data
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertResponseStructure(response)
         self.assertEqual(response.json()["message"], "Successfully set new password")
         # Assert password change success
-        user_instance = CustomUser.objects.get(username=NEW_USER_USERNAME)
-        after_update_password_state = user_instance.is_default_password
-        self.assertNotEqual(before_update_password_state, after_update_password_state)
-        self.assertFalse(after_update_password_state)
-        self.assertTrue(check_password(new_password, user_instance.password))
+        self.assertFalse(self.new_user.is_default_password)
+        self.assertTrue(check_password(new_password, self.new_user.password))
 
     def test_set_password_validation_failure(self):
         # Act
@@ -314,7 +323,18 @@ class AccountViewsTestCase(CustomAPITestCase):
         self.assertEqual(response.json()["code"], "error")
 
     def test_set_security_qa_success_active_user(self):
-        # Arrange: set scope token in cookie and security questions prepare
+        # Assert user security qa before update
+        before_update_user_qa = UserQuestionAnswer.objects.filter(
+            user=self.active_user.id
+        ).order_by("id")
+        before_update_questions = [qa.question.id for qa in before_update_user_qa]
+        before_update_answers = [qa.answer for qa in before_update_user_qa]
+        expect_before_update_questions = [
+            question.id for question in self.security_questions[:3]
+        ]
+        self.assertEqual(before_update_questions, expect_before_update_questions)
+        self.assertEqual(before_update_answers, ["Answer 1", "Answer 2", "Answer 3"])
+        # Arrange: set scope token in cookie/security questions prepare/before change answer
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
             TokenFactory.valid_token(
                 token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
@@ -322,12 +342,12 @@ class AccountViewsTestCase(CustomAPITestCase):
                 username=ACTIVE_USER_USERNAME,
             )
         )
-        official_security_questions = SecurityQuestion.objects.filter(status="Official")
-        question_ids = [question.id for question in official_security_questions]
+        question_ids = [question.id for question in self.security_questions[3:]]
+        new_answers = ["New Answer 1", "New Answer 2", "New Answer 3"]
         # Act
         response = self.client.post(
             self.user_security_questions_url,
-            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+            {"questions": question_ids, "answers": new_answers},
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -336,8 +356,21 @@ class AccountViewsTestCase(CustomAPITestCase):
             response.json()["message"],
             "Successfully set new security question and answer",
         )
+        # Assert user security questions answers after update
+        after_update_user_qa = UserQuestionAnswer.objects.filter(
+            user=self.active_user.id
+        ).order_by("id")
+        after_update_questions = [qa.question.id for qa in after_update_user_qa]
+        after_update_answers = [qa.answer for qa in after_update_user_qa]
+        self.assertEqual(after_update_questions, question_ids)
+        self.assertEqual(after_update_answers, new_answers)
 
     def test_security_qa_success_new_user(self):
+        # Assert user security qa before update
+        before_update_user_qa = UserQuestionAnswer.objects.filter(
+            user=self.new_user.id
+        ).order_by("id")
+        self.assertEqual(len(before_update_user_qa), 0)
         # Arrange: get security qa setup status/set scope token in cookie/security questions prepare
         user_instance = CustomUser.objects.get(username=NEW_USER_USERNAME)
         before_update_security_qa_state = user_instance.is_security_question_set
@@ -348,12 +381,12 @@ class AccountViewsTestCase(CustomAPITestCase):
                 username=NEW_USER_USERNAME,
             )
         )
-        official_security_questions = SecurityQuestion.objects.filter(status="Official")
-        question_ids = [question.id for question in official_security_questions]
+        question_ids = [question.id for question in self.security_questions[3:]]
+        answers = ["New Answer 1", "New Answer 2", "New Answer 3"]
         # Act
         response = self.client.post(
             self.user_security_questions_url,
-            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+            {"questions": question_ids, "answers": answers},
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -370,6 +403,14 @@ class AccountViewsTestCase(CustomAPITestCase):
             before_update_security_qa_state, after_update_security_qa_state
         )
         self.assertTrue(after_update_security_qa_state)
+        # Assert user security questions answers after update
+        after_update_user_qa = UserQuestionAnswer.objects.filter(
+            user=self.new_user.id
+        ).order_by("id")
+        after_update_questions = [qa.question.id for qa in after_update_user_qa]
+        after_update_answers = [qa.answer for qa in after_update_user_qa]
+        self.assertEqual(after_update_questions, question_ids)
+        self.assertEqual(after_update_answers, answers)
 
     def test_set_security_qa_validation_failure(self):
         # Act
@@ -387,12 +428,12 @@ class AccountViewsTestCase(CustomAPITestCase):
 
     def test_set_security_qa_token_not_found(self):
         # Arrange: security questions prepare
-        official_security_questions = SecurityQuestion.objects.filter(status="Official")
-        question_ids = [question.id for question in official_security_questions]
+        question_ids = [question.id for question in self.security_questions[:3]]
+        answers = ["New Answer 1", "New Answer 2", "New Answer 3"]
         # Act
         response = self.client.post(
             self.user_security_questions_url,
-            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+            {"questions": question_ids, "answers": answers},
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -405,12 +446,12 @@ class AccountViewsTestCase(CustomAPITestCase):
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
             TokenFactory.invalid_signature()
         )
-        official_security_questions = SecurityQuestion.objects.filter(status="Official")
-        question_ids = [question.id for question in official_security_questions]
+        question_ids = [question.id for question in self.security_questions[:3]]
+        answers = ["New Answer 1", "New Answer 2", "New Answer 3"]
         # Act
         response = self.client.post(
             self.user_security_questions_url,
-            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+            {"questions": question_ids, "answers": answers},
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -425,12 +466,12 @@ class AccountViewsTestCase(CustomAPITestCase):
                 scope=TokenScope.PASSWORD_VERIFY_SCOPE,
             )
         )
-        official_security_questions = SecurityQuestion.objects.filter(status="Official")
-        question_ids = [question.id for question in official_security_questions]
+        question_ids = [question.id for question in self.security_questions[:3]]
+        answers = ["New Answer 1", "New Answer 2", "New Answer 3"]
         # Act
         response = self.client.post(
             self.user_security_questions_url,
-            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+            {"questions": question_ids, "answers": answers},
         )
         # Assert response
         self.assertEqual(response.status_code, 404)
@@ -445,12 +486,12 @@ class AccountViewsTestCase(CustomAPITestCase):
         client = APIClient(raise_request_exception=False)
         exception_message = "Verify token: Unexpected error when retrieve token"
         mock_get_token.side_effect = Exception(exception_message)
-        official_security_questions = SecurityQuestion.objects.filter(status="Official")
-        question_ids = [question.id for question in official_security_questions]
+        question_ids = [question.id for question in self.security_questions[:3]]
+        answers = ["New Answer 1", "New Answer 2", "New Answer 3"]
         # Act
         response = client.post(
             self.user_security_questions_url,
-            {"questions": question_ids, "answers": ["Hanoi", "Bin", "Bachkhoa"]},
+            {"questions": question_ids, "answers": answers},
         )
         # Assert log content to log correct exception
         mock_logger.error.assert_called_once()

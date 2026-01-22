@@ -44,26 +44,30 @@ def create_test_users():
 def create_security_questions():
     """Create and return all official security questions."""
     question_list = [
-        {"content": "What is your mother's maiden name?", "status": "Official"},
-        {"content": "What is your pet's name?", "status": "Official"},
-        {"content": "What was the name of your first school?", "status": "Official"},
-        {
-            "content": "What was your favorite spot in your hometown?",
-            "status": "Unofficial",
-        },
+        {"content": "Official Question 1", "status": "Official"},
+        {"content": "Official Question 2", "status": "Official"},
+        {"content": "Official Question 3", "status": "Official"},
+        {"content": "Official Question 4", "status": "Official"},
+        {"content": "Official Question 5", "status": "Official"},
+        {"content": "Official Question 6", "status": "Official"},
+        {"content": "Unofficial Question 1", "status": "Unofficial"},
+        {"content": "Unofficial Question 2", "status": "Unofficial"},
     ]
     SecurityQuestion.objects.bulk_create(
         [SecurityQuestion(**data) for data in question_list]
     )
-    return SecurityQuestion.objects.all().order_by("content")
 
 
-def create_user_question_answers(user, questions):
+def create_user_question_answers(user):
     """Link a given user with security question answers."""
+    official_security_questions = SecurityQuestion.objects.filter(
+        status="Official"
+    ).order_by("id")
+    questions = official_security_questions[:3]
     answer_list = [
-        {"user": user, "question": questions[0], "answer": "Smith"},
-        {"user": user, "question": questions[1], "answer": "Fluffy"},
-        {"user": user, "question": questions[2], "answer": "Greenwood"},
+        {"user": user, "question": questions[0], "answer": "Answer 1"},
+        {"user": user, "question": questions[1], "answer": "Answer 2"},
+        {"user": user, "question": questions[2], "answer": "Answer 3"},
     ]
     UserQuestionAnswer.objects.bulk_create(
         [UserQuestionAnswer(**data) for data in answer_list]
@@ -73,5 +77,5 @@ def create_user_question_answers(user, questions):
 def setup_mock_accounts():
     """Setup mock accounts for testing."""
     _, active_user = create_test_users()
-    security_questions = list(create_security_questions())
-    create_user_question_answers(active_user, security_questions)
+    create_security_questions()
+    create_user_question_answers(active_user)
