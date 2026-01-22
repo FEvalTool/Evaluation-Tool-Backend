@@ -66,7 +66,7 @@ class AuthViewSet(ViewSet):
                 raise CustomUser.DoesNotExist
             # Prepare cookie metadata and data for response
             response_data = {"message": "Successfully Login"}
-            user_data = {"id": user.id, "username": user.username}
+            data = {"user": {"id": user.id, "username": user.username}}
             cookie_item_list = []
             if user.is_default_password or not user.is_security_question_set:
                 # When user login for the first time, create scope jwt token
@@ -81,10 +81,12 @@ class AuthViewSet(ViewSet):
                         "cookie_max_age": settings.SCOPE_TOKEN_LIFETIME.total_seconds(),
                     }
                 )
+                user_data = data["user"]
                 user_data["first_time_setup"] = True
                 user_data["is_password_setup"] = not user.is_default_password
                 user_data["is_security_qa_setup"] = user.is_security_question_set
-                response_data["scope_token_exp"] = exp * 1000
+                data["user"] = user_data
+                data["scope_token_exp"] = exp * 1000
             else:
                 refresh = RefreshToken.for_user(user)
                 cookie_item_list.extend(
@@ -105,7 +107,7 @@ class AuthViewSet(ViewSet):
                         },
                     ]
                 )
-            response_data["data"] = user_data
+            response_data["data"] = data
             # Store cookie and data in response
             res = response.Response()
             res = set_cookie_response(cookie_item_list, res)
@@ -301,7 +303,7 @@ class AuthViewSet(ViewSet):
                     }
                 )
                 raise PermissionDenied(
-                    f"User with {username} hasn't setup account, cannot perform this action"
+                    f"User with username {username} hasn't setup account, cannot perform this action"
                 )
             # Validate password
             if not user.check_password(serializer.validated_data["password"]):
