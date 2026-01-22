@@ -144,21 +144,20 @@ class AuthViewsTestCase(CustomAPITestCase):
     @mock.patch("users.views.auth_views.ScopeToken.for_user")
     def test_login_internal_server_error(self, mock_create_jwt, mock_logger):
         # Arrange: Mock fail function
-        client = APIClient(raise_request_exception=True)
+        client = APIClient(raise_request_exception=False)
         exception_message = "Login: Unexpected error when creating JWT"
         mock_create_jwt.side_effect = Exception(exception_message)
         # Act
         response = client.post(
             self.login_url,
             {"username": NEW_USER_USERNAME, "password": NEW_USER_PASSWORD},
-            content_type="application/json",
+            format="json",
         )
         # Assert log content to log correct exception
         mock_logger.error.assert_called_once()
         logged_data = mock_logger.error.call_args[0][0]
         self.assertEqual(logged_data["event_type"], EventType.LOGIN)
         self.assertEqual(logged_data["error_type"], ErrorTypes.EXCEPTION)
-        print("ERROR CONTTTTTTEENT", logged_data["error_content"])
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
