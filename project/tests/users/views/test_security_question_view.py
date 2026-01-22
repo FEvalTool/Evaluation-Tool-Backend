@@ -12,7 +12,7 @@ from common.constants import ErrorTypes
 class SecurityQuestionsViewsTestCase(CustomAPITestCase):
     def setUp(self):
         self.client = APIClient()
-        self.get_security_questions_url = reverse("question-list")
+        self.get_security_questions_url = reverse("security_question-list")
         create_security_questions()
 
     def test_get_all_security_questions_success(self):
@@ -54,8 +54,8 @@ class SecurityQuestionsViewsTestCase(CustomAPITestCase):
         error_item_keys = get_error_key_response(response)
         self.assertIn("status", error_item_keys)
 
-    @mock.patch("users.views.question_views.logger")
-    @mock.patch("users.views.question_views.SecurityQuestionQuerySerializer.is_valid")
+    @mock.patch("users.views.security_question_views.logger")
+    @mock.patch("users.views.security_question_views.SecurityQuestionQuerySerializer.is_valid")
     def test_get_security_questions_internal_server_error(
         self, mock_validate, mock_logger
     ):

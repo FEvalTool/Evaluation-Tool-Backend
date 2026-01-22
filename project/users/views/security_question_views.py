@@ -17,7 +17,7 @@ from ..serializers import (
 logger = logging.getLogger(__name__)
 
 
-class QuestionViewSet(ViewSet):
+class SecurityQuestionViewSet(ViewSet):
     """
     Viewset for support Security questions related APIs
     (Create, Retrieve, Update security questions)
