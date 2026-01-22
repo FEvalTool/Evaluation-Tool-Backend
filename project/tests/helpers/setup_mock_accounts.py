@@ -1,23 +1,28 @@
 from users.models import CustomUser, SecurityQuestion, UserQuestionAnswer
 
+NEW_USER_USERNAME = "new_user"
+NEW_USER_PASSWORD = "correctpassword"
+ACTIVE_USER_USERNAME = "active_user"
+ACTIVE_USER_PASSWORD = "cORRectPassw0rd!"
+
 
 def create_test_users():
     """
     Create and return two users:
-    - first_time_setup_user: has default password and no security questions set
-    - normal_user: has password and security questions set
+    - new_user: has default password and no security questions set
+    - active_user: has password and security questions set
     """
     user_info_list = [
         {
-            "username": "testuser",
-            "name": "Test User",
+            "username": NEW_USER_USERNAME,
+            "name": "New User",
             "phone_number": "0123456789",
             "dob": "1990-01-01",
             "identity_number": "123456789012",
         },
         {
-            "username": "testuser1",
-            "name": "Test User 1",
+            "username": ACTIVE_USER_USERNAME,
+            "name": "Active User",
             "phone_number": "0987654321",
             "dob": "2000-01-01",
             "identity_number": "123456789999",
@@ -26,14 +31,14 @@ def create_test_users():
         },
     ]
 
-    first_time_setup_user = CustomUser(**user_info_list[0])
-    first_time_setup_user.set_password("correctpassword")
-    normal_user = CustomUser(**user_info_list[1])
-    normal_user.set_password("cORRectPassw0rd!")
-    first_time_setup_user.save()
-    normal_user.save()
+    new_user = CustomUser(**user_info_list[0])
+    new_user.set_password(NEW_USER_PASSWORD)
+    active_user = CustomUser(**user_info_list[1])
+    active_user.set_password(ACTIVE_USER_PASSWORD)
+    new_user.save()
+    active_user.save()
 
-    return first_time_setup_user, normal_user
+    return new_user, active_user
 
 
 def create_security_questions():
@@ -67,6 +72,6 @@ def create_user_question_answers(user, questions):
 
 def setup_mock_accounts():
     """Setup mock accounts for testing."""
-    _, normal_user = create_test_users()
+    _, active_user = create_test_users()
     security_questions = list(create_security_questions())
-    create_user_question_answers(normal_user, security_questions)
+    create_user_question_answers(active_user, security_questions)

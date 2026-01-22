@@ -10,7 +10,13 @@ from users.models import UserQuestionAnswer
 from users.constants import TokenScope, BYPASS_TOKEN_NOTFOUND, EventType
 from common.constants import ErrorTypes
 from users.redis.tokens import RefreshTokenRedis, ScopeTokenRedis
-from tests.helpers.setup_mock_accounts import setup_mock_accounts
+from tests.helpers.setup_mock_accounts import (
+    setup_mock_accounts,
+    ACTIVE_USER_USERNAME,
+    NEW_USER_USERNAME,
+    ACTIVE_USER_PASSWORD,
+    NEW_USER_PASSWORD,
+)
 from tests.helpers.setup_mock_token import TokenFactory, get_jti_from_jwt
 from tests.helpers.utils import get_error_key_response
 
@@ -32,14 +38,14 @@ class AuthViewsTestCase(TestCase):
         self.logout_url = reverse("auth-delete-refresh-access-token")
         setup_mock_accounts()
 
-    def test_login_success_first_time_setup_user(self):
+    def test_login_success_new_user(self):
         # Arrange expected scope token expire time
         now = int(time.time())
         expected_token_expiry = (now + (10 * 60)) * 1000  # 10 minute expire scope token
         # Act
         response = self.client.post(
             self.login_url,
-            {"username": "testuser", "password": "correctpassword"},
+            {"username": NEW_USER_USERNAME, "password": NEW_USER_PASSWORD},
             format="json",
         )
         # Assert response status
@@ -49,7 +55,7 @@ class AuthViewsTestCase(TestCase):
         # Assert response body - user data
         self.assertIn("user", response.json()["data"])
         user_data = response.json()["data"]["user"]
-        self.assertEqual(user_data["username"], "testuser")
+        self.assertEqual(user_data["username"], NEW_USER_USERNAME)
         self.assertEqual(user_data["first_time_setup"], True)
         self.assertEqual(user_data["is_password_setup"], False)
         self.assertEqual(user_data["is_security_qa_setup"], False)
@@ -70,11 +76,11 @@ class AuthViewsTestCase(TestCase):
             f"The {settings.COOKIE_SETTINGS['AUTH_COOKIE_SCOPE']} cookie was not set in the response.",
         )
 
-    def test_login_success_normal_user(self):
+    def test_login_success_active_user(self):
         # Act
         response = self.client.post(
             self.login_url,
-            {"username": "testuser1", "password": "cORRectPassw0rd!"},
+            {"username": ACTIVE_USER_USERNAME, "password": ACTIVE_USER_PASSWORD},
             format="json",
         )
         # Assert response status
@@ -85,7 +91,7 @@ class AuthViewsTestCase(TestCase):
         self.assertIn("user", response.json()["data"])
         self.assertNotIn("scope_token_exp", response.json()["data"])
         user_data = response.json()["data"]["user"]
-        self.assertEqual(user_data["username"], "testuser1")
+        self.assertEqual(user_data["username"], ACTIVE_USER_USERNAME)
         with self.assertRaises(KeyError) as context:
             _ = user_data["first_time_setup"]
         # Assert scope token generate in cookie
@@ -108,7 +114,7 @@ class AuthViewsTestCase(TestCase):
         # Act
         response = self.client.post(
             self.login_url,
-            {"username": "testuser", "password": "wrongpassword"},
+            {"username": NEW_USER_USERNAME, "password": "wrongpassword"},
             format="json",
         )
         # Assert response
@@ -121,7 +127,7 @@ class AuthViewsTestCase(TestCase):
         # Act
         response = self.client.post(
             self.login_url,
-            {"username": "testuser"},
+            {"username": NEW_USER_USERNAME},
             format="json",
         )
         # Assert response
@@ -141,7 +147,7 @@ class AuthViewsTestCase(TestCase):
         # Act
         response = client.post(
             self.login_url,
-            {"username": "testuser", "password": "correctpassword"},
+            {"username": NEW_USER_USERNAME, "password": NEW_USER_PASSWORD},
             content_type="application/json",
         )
         # Assert log content to log correct exception
@@ -165,7 +171,7 @@ class AuthViewsTestCase(TestCase):
         response = self.client.post(
             self.generate_qa_token_url,
             {
-                "username": "testuser1",
+                "username": ACTIVE_USER_USERNAME,
                 "questions": questions,
                 "answers": answers,
             },
@@ -192,12 +198,12 @@ class AuthViewsTestCase(TestCase):
             f"The {settings.COOKIE_SETTINGS['AUTH_COOKIE_SCOPE']} cookie was not set in the response.",
         )
 
-    def test_generate_qa_verification_token_first_time_user_not_allowed(self):
+    def test_generate_qa_verification_token_new_user_not_allowed(self):
         # Act
         response = self.client.post(
             self.generate_qa_token_url,
             {
-                "username": "testuser",
+                "username": NEW_USER_USERNAME,
                 "questions": [1, 2, 3],
                 "answers": ["answer", "answer", "answer"],
             },
@@ -208,7 +214,7 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.json()["code"], "permission_denied")
         self.assertEqual(
             response.json()["message"],
-            f"User with username testuser hasn't setup account, cannot perform this action",
+            f"User with username {NEW_USER_USERNAME} hasn't setup account, cannot perform this action",
         )
 
     def test_generate_qa_verification_token_wrong_answer_failure(self):
@@ -219,7 +225,7 @@ class AuthViewsTestCase(TestCase):
         response = self.client.post(
             self.generate_qa_token_url,
             {
-                "username": "testuser1",
+                "username": ACTIVE_USER_USERNAME,
                 "questions": questions,
                 "answers": ["Wrong1", "Wrong2", "Wrong3"],
             },
@@ -255,7 +261,7 @@ class AuthViewsTestCase(TestCase):
         response = self.client.post(
             self.generate_qa_token_url,
             {
-                "username": "testuser1",
+                "username": ACTIVE_USER_USERNAME,
                 "questions": [1, 2],
                 "answers": ["Fluffy", "Smith"],
             },
@@ -278,7 +284,7 @@ class AuthViewsTestCase(TestCase):
         response = self.client.post(
             self.generate_qa_token_url,
             {
-                "username": "testuser1",
+                "username": ACTIVE_USER_USERNAME,
                 "questions": questions,
                 "answers": ["Answer", "Answer", "Answer"],
             },
@@ -318,7 +324,7 @@ class AuthViewsTestCase(TestCase):
         response = client.post(
             self.generate_qa_token_url,
             {
-                "username": "testuser1",
+                "username": ACTIVE_USER_USERNAME,
                 "questions": questions,
                 "answers": answers,
             },
@@ -346,7 +352,7 @@ class AuthViewsTestCase(TestCase):
         # Act
         response = self.client.post(
             self.generate_password_token_url,
-            {"username": "testuser1", "password": "cORRectPassw0rd!"},
+            {"username": ACTIVE_USER_USERNAME, "password": ACTIVE_USER_PASSWORD},
             format="json",
         )
         # Assert response status
@@ -369,11 +375,11 @@ class AuthViewsTestCase(TestCase):
             f"The {settings.COOKIE_SETTINGS['AUTH_COOKIE_SCOPE']} cookie was not set in the response.",
         )
 
-    def test_generate_password_verification_token_first_time_user_not_allowed(self):
+    def test_generate_password_verification_token_new_user_not_allowed(self):
         # Act
         response = self.client.post(
             self.generate_password_token_url,
-            {"username": "testuser", "password": "correctpassword"},
+            {"username": NEW_USER_USERNAME, "password": NEW_USER_PASSWORD},
             format="json",
         )
         # Assert response
@@ -381,14 +387,14 @@ class AuthViewsTestCase(TestCase):
         self.assertEqual(response.json()["code"], "permission_denied")
         self.assertEqual(
             response.json()["message"],
-            f"User with username testuser hasn't setup account, cannot perform this action",
+            f"User with username {NEW_USER_USERNAME} hasn't setup account, cannot perform this action",
         )
 
     def test_generate_password_verification_token_wrong_password_failure(self):
         # Act
         response = self.client.post(
             self.generate_password_token_url,
-            {"username": "testuser1", "password": "wrongpassword"},
+            {"username": ACTIVE_USER_USERNAME, "password": "wrongpassword"},
             format="json",
         )
         # Assert response
@@ -416,7 +422,7 @@ class AuthViewsTestCase(TestCase):
         # Act
         response = self.client.post(
             self.generate_password_token_url,
-            {"username": "testuser1"},
+            {"username": ACTIVE_USER_USERNAME},
             format="json",
         )
         # Assert response
@@ -440,7 +446,7 @@ class AuthViewsTestCase(TestCase):
         # Act
         response = client.post(
             self.generate_password_token_url,
-            {"username": "testuser1", "password": "cORRectPassw0rd!"},
+            {"username": ACTIVE_USER_USERNAME, "password": ACTIVE_USER_PASSWORD},
             format="json",
         )
         # Assert log content to log correct exception
@@ -462,6 +468,7 @@ class AuthViewsTestCase(TestCase):
             TokenFactory.valid_token(
                 token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
                 scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+                username=ACTIVE_USER_USERNAME,
             )
         )
         # Act
@@ -531,7 +538,8 @@ class AuthViewsTestCase(TestCase):
     def test_refresh_token_success(self):
         # Arrange refresh token store in cookie
         refresh_token = TokenFactory.valid_token(
-            token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
+            token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"],
+            username=ACTIVE_USER_USERNAME,
         )
         jti = get_jti_from_jwt(refresh_token)  # Get before update refresh token jti
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]] = (
@@ -601,6 +609,7 @@ class AuthViewsTestCase(TestCase):
         scope_token = TokenFactory.valid_token(
             token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
             scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            username=ACTIVE_USER_USERNAME,
         )
         jti = get_jti_from_jwt(scope_token)  # Get before-deleted scope token jti
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = scope_token
@@ -652,10 +661,12 @@ class AuthViewsTestCase(TestCase):
     def test_logout_success(self):
         # Arrange access aand refresh token store in cookie
         refresh_token = TokenFactory.valid_token(
-            settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
+            settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"],
+            username=ACTIVE_USER_USERNAME,
         )
         access_token = TokenFactory.valid_token(
-            settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]
+            settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
+            username=ACTIVE_USER_USERNAME,
         )
         jti = get_jti_from_jwt(refresh_token)  # Get before-deleted refresh token jti
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]] = (

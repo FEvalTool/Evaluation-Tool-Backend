@@ -9,7 +9,11 @@ from rest_framework.test import APIClient
 from users.constants import TokenScope, EventType
 from users.models import CustomUser, SecurityQuestion
 from common.constants import ErrorTypes
-from tests.helpers.setup_mock_accounts import setup_mock_accounts
+from tests.helpers.setup_mock_accounts import (
+    setup_mock_accounts,
+    ACTIVE_USER_USERNAME,
+    NEW_USER_USERNAME,
+)
 from tests.helpers.setup_mock_token import TokenFactory
 from tests.helpers.utils import get_error_key_response
 
@@ -77,14 +81,14 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertEqual(response.json()["code"], "error")
 
-    def test_get_first_time_user_setup_status_success(self):
+    def test_get_new_user_setup_status_success(self):
         # Arrange: Get user instance and set scope token in cookie
-        user_instance = CustomUser.objects.get(username="testuser")
+        user_instance = CustomUser.objects.get(username=NEW_USER_USERNAME)
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
             TokenFactory.valid_token(
                 token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
                 scope=TokenScope.PASSWORD_VERIFY_SCOPE,
-                username="testuser",
+                username=NEW_USER_USERNAME,
             )
         )
         # Act
@@ -100,13 +104,13 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(user_data["is_password_setup"], False)
         self.assertEqual(user_data["is_security_qa_setup"], False)
 
-    def test_get_normal_user_setup_status_success(self):
+    def test_get_active_user_setup_status_success(self):
         # Arrange: Get user instance and set access token to cookie
-        user_instance = CustomUser.objects.get(username="testuser1")
+        user_instance = CustomUser.objects.get(username=ACTIVE_USER_USERNAME)
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]] = (
             TokenFactory.valid_token(
                 token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
-                username="testuser1",
+                username=ACTIVE_USER_USERNAME,
             )
         )
         # Act
@@ -177,13 +181,14 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertEqual(response.json()["code"], "error")
 
-    def test_set_password_success(self):
+    def test_set_password_success_active_user(self):
         # Arrange: set scope token in cookie
         new_password = "NewPassword123!"
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
             TokenFactory.valid_token(
                 token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
                 scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+                username=ACTIVE_USER_USERNAME,
             )
         )
         # Act
@@ -194,18 +199,18 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()["message"], "Successfully set new password")
         # Assert password change success
-        user_instance = CustomUser.objects.get(username="testuser1")
+        user_instance = CustomUser.objects.get(username=ACTIVE_USER_USERNAME)
         self.assertTrue(check_password(new_password, user_instance.password))
 
-    def test_set_password_success_first_time_user(self):
+    def test_set_password_success_new_user(self):
         # Arrange: password status before password change and scope cookie set
-        user_instance = CustomUser.objects.get(username="testuser")
+        user_instance = CustomUser.objects.get(username=NEW_USER_USERNAME)
         before_update_password_state = user_instance.is_default_password
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
             TokenFactory.valid_token(
                 token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
                 scope=TokenScope.PASSWORD_VERIFY_SCOPE,
-                username="testuser",
+                username=NEW_USER_USERNAME,
             )
         )
         new_password = "NewPassword123!"
@@ -215,7 +220,7 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()["message"], "Successfully set new password")
         # Assert password change success
-        user_instance = CustomUser.objects.get(username="testuser")
+        user_instance = CustomUser.objects.get(username=NEW_USER_USERNAME)
         after_update_password_state = user_instance.is_default_password
         self.assertNotEqual(before_update_password_state, after_update_password_state)
         self.assertFalse(after_update_password_state)
@@ -292,12 +297,13 @@ class AccountViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertEqual(response.json()["code"], "error")
 
-    def test_set_security_qa_success(self):
+    def test_set_security_qa_success_active_user(self):
         # Arrange: set scope token in cookie and security questions prepare
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
             TokenFactory.valid_token(
                 token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
                 scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+                username=ACTIVE_USER_USERNAME,
             )
         )
         official_security_questions = SecurityQuestion.objects.filter(status="Official")
@@ -314,15 +320,15 @@ class AccountViewsTestCase(TestCase):
             "Successfully set new security question and answer",
         )
 
-    def test_security_qa_success_first_time_user(self):
+    def test_security_qa_success_new_user(self):
         # Arrange: get security qa setup status/set scope token in cookie/security questions prepare
-        user_instance = CustomUser.objects.get(username="testuser")
+        user_instance = CustomUser.objects.get(username=NEW_USER_USERNAME)
         before_update_security_qa_state = user_instance.is_security_question_set
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
             TokenFactory.valid_token(
                 token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
                 scope=TokenScope.PASSWORD_VERIFY_SCOPE,
-                username="testuser",
+                username=NEW_USER_USERNAME,
             )
         )
         official_security_questions = SecurityQuestion.objects.filter(status="Official")
@@ -340,7 +346,7 @@ class AccountViewsTestCase(TestCase):
             "Successfully set new security question and answer",
         )
         # Assert security qa setup status
-        user_instance = CustomUser.objects.get(username="testuser")
+        user_instance = CustomUser.objects.get(username=NEW_USER_USERNAME)
         after_update_security_qa_state = user_instance.is_default_password
         self.assertNotEqual(
             before_update_security_qa_state, after_update_security_qa_state
@@ -438,7 +444,7 @@ class AccountViewsTestCase(TestCase):
     def test_get_user_security_questions_success(self):
         # Act
         response = self.client.get(
-            self.user_security_questions_url, {"username": "testuser1"}
+            self.user_security_questions_url, {"username": ACTIVE_USER_USERNAME}
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -450,17 +456,17 @@ class AccountViewsTestCase(TestCase):
             self.assertIn("content", question)
             self.assertIn("id", question)
 
-    def test_get_user_security_questions_first_time_user_not_allowed(self):
+    def test_get_user_security_questions_new_user_not_allowed(self):
         # Act
         response = self.client.get(
-            self.user_security_questions_url, {"username": "testuser"}
+            self.user_security_questions_url, {"username": NEW_USER_USERNAME}
         )
         # Assert response
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(response.json()["code"], "permission_denied")
         self.assertEqual(
             response.json()["message"],
-            f"User with username testuser hasn't setup account, cannot perform this action",
+            f"User with username {NEW_USER_USERNAME} hasn't setup account, cannot perform this action",
         )
 
     def test_get_user_security_questions_username_not_exist(self):
