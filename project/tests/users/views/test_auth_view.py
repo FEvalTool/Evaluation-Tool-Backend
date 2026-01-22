@@ -1,12 +1,11 @@
 import time
 from unittest import mock
-from django.test import TestCase
 from django.urls import reverse
 from django.conf import settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from users.models import UserQuestionAnswer
+from users.models import UserQuestionAnswer, CustomUser
 from users.constants import TokenScope, BYPASS_TOKEN_NOTFOUND, EventType
 from common.constants import ErrorTypes
 from users.redis.tokens import RefreshTokenRedis, ScopeTokenRedis
@@ -37,6 +36,8 @@ class AuthViewsTestCase(CustomAPITestCase):
         self.delete_scope_token_url = reverse("auth-delete-scope-token")
         self.logout_url = reverse("auth-delete-refresh-access-token")
         setup_mock_accounts()
+        # Get active user id to get user security qa
+        self.active_user_id = CustomUser.objects.get(username=ACTIVE_USER_USERNAME).id
 
     def test_login_success_new_user(self):
         # Arrange expected scope token expire time
@@ -165,7 +166,7 @@ class AuthViewsTestCase(CustomAPITestCase):
 
     def test_generate_qa_verification_token_success(self):
         # Arrange security questions and answers/expected mock token expired time
-        questions_answers = UserQuestionAnswer.objects.all()
+        questions_answers = UserQuestionAnswer.objects.filter(user=self.active_user_id)
         questions = [qa.question.id for qa in questions_answers]
         answers = [qa.answer for qa in questions_answers]
         now = int(time.time())
@@ -224,7 +225,7 @@ class AuthViewsTestCase(CustomAPITestCase):
 
     def test_generate_qa_verification_token_wrong_answer_failure(self):
         # Arrange security questions
-        questions_answers = UserQuestionAnswer.objects.all()
+        questions_answers = UserQuestionAnswer.objects.filter(user=self.active_user_id)
         questions = [qa.question.id for qa in questions_answers]
         # Act
         response = self.client.post(
@@ -284,7 +285,7 @@ class AuthViewsTestCase(CustomAPITestCase):
 
     def test_generate_qa_verification_token_question_not_exist(self):
         # Arrange security questions with unknown question
-        questions_answers = UserQuestionAnswer.objects.all()
+        questions_answers = UserQuestionAnswer.objects.filter(user=self.active_user_id)
         questions = [qa.question.id for qa in questions_answers]
         questions.pop()
         questions.append(9999)
@@ -326,7 +327,7 @@ class AuthViewsTestCase(CustomAPITestCase):
             "Gen QA verification token: Unexpected error when creating JWT"
         )
         mock_create_jwt.side_effect = Exception(exception_message)
-        questions_answers = UserQuestionAnswer.objects.all()
+        questions_answers = UserQuestionAnswer.objects.filter(user=self.active_user_id)
         questions = [qa.question.id for qa in questions_answers]
         answers = [qa.answer for qa in questions_answers]
         # Act

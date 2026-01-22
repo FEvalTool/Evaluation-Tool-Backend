@@ -1,5 +1,6 @@
 from django.test import TestCase
 
+from users.models import SecurityQuestion
 from users.serializers import (
     SetSecurityQASerializer,
     GetSecurityQAVerificationTokenSerializer,
@@ -9,18 +10,18 @@ from tests.helpers.setup_mock_accounts import create_security_questions
 
 class SetSecurityQASerializerTest(TestCase):
     def setUp(self):
-        security_question_instances = create_security_questions()
-        self.official_questions = security_question_instances.filter(
+        create_security_questions()
+        self.official_questions = SecurityQuestion.objects.filter(
             status="Official"
         ).order_by("id")
-        self.unofficial_question = security_question_instances.filter(
+        self.unofficial_question = SecurityQuestion.objects.filter(
             status="Unofficial"
         ).first()
 
     def test_validate_questions_success(self):
         data = {
             "token": "sometoken",
-            "questions": [q.id for q in self.official_questions],
+            "questions": [q.id for q in self.official_questions[:3]],
             "answers": ["a", "b", "c"],
         }
 
@@ -30,7 +31,7 @@ class SetSecurityQASerializerTest(TestCase):
         validated_questions = serializer.validated_data["questions"]
         self.assertEqual(
             [q.id for q in validated_questions],
-            [q.id for q in self.official_questions],
+            [q.id for q in self.official_questions[:3]],
         )
 
     def test_validate_questions_with_duplicates(self):

@@ -24,7 +24,7 @@ class SecurityQuestionsViewsTestCase(CustomAPITestCase):
         self.assertEqual(
             response.json()["message"], "Successfully retrieve security questions"
         )
-        self.assertEqual(len(response.json()["data"]), 4)
+        self.assertEqual(len(response.json()["data"]), 8)
 
     def test_filter_security_questions_success(self):
         # Act
@@ -37,7 +37,7 @@ class SecurityQuestionsViewsTestCase(CustomAPITestCase):
         self.assertEqual(
             response.json()["message"], "Successfully retrieve security questions"
         )
-        self.assertEqual(len(response.json()["data"]), 3)
+        self.assertEqual(len(response.json()["data"]), 6)
         # Assert filter ok
         for question in response.json()["data"]:
             self.assertEqual(question["status"], "Official")
