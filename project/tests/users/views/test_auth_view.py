@@ -304,16 +304,11 @@ class AuthViewsTestCase(CustomAPITestCase):
         self.assertResponseStructure(response)
         # Assert response body
         self.assertEqual(response.json()["code"], "validation")
-        error_item_keys = get_error_key_response(response)
-        self.assertIn("questions", error_item_keys)
-        questions_val_err = [
-            error
-            for error in response.json()["error"]
-            if list(error.keys())[0] == "questions"
-        ]
-        questions_val_err_content = questions_val_err[0]["questions"]
+        validation_error = response.json()["error"]
+        self.assertEqual(len(validation_error), 1)
+        self.assertEqual(validation_error[0]["field"], "questions")
         self.assertEqual(
-            questions_val_err_content, "User security questions doesn't existed"
+            validation_error[0]["message"], "User security questions doesn't existed"
         )
 
     @mock.patch("users.views.auth_views.logger")

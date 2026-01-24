@@ -18,7 +18,7 @@ class CustomExceptionFormatter(ExceptionFormatter):
             error_code = "validation"
             error_message = "Invalid request body/params"
             for error in error_response.errors:
-                error_details.append({error.attr: error.detail})
+                error_details.append({"field": error.attr, "message": error.detail})
         return {
             "code": error_code,
             "message": error_message,

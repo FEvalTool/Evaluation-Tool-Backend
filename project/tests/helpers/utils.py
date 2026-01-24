@@ -3,10 +3,10 @@ from django.test import TestCase
 
 def get_error_key_response(response):
     """Retrieving error key list from validation error response"""
-    error_item_keys = []
+    error_item_keys = set()
     if "error" in response.json():
         for error in response.json()["error"]:
-            error_item_keys.extend(list(error.keys()))
+            error_item_keys.add(error["field"])
     return error_item_keys
 
 
