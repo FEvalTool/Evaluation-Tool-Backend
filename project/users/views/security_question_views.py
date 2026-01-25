@@ -3,7 +3,7 @@ import logging
 from django.http import JsonResponse
 from rest_framework import status
 from rest_framework.viewsets import ViewSet
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, APIException
 
 from common.constants import ErrorTypes
 from ..constants import EventType
@@ -17,7 +17,7 @@ from ..serializers import (
 logger = logging.getLogger(__name__)
 
 
-class QuestionViewSet(ViewSet):
+class SecurityQuestionViewSet(ViewSet):
     """
     Viewset for support Security questions related APIs
     (Create, Retrieve, Update security questions)
@@ -106,7 +106,7 @@ class QuestionViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Successfully retrieve security questions",
-                    "questions": serializer.data,
+                    "data": serializer.data,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -118,13 +118,7 @@ class QuestionViewSet(ViewSet):
                     "error_content": e.detail,
                 }
             )
-            return JsonResponse(
-                {
-                    "message": "Invalid request",
-                    "error_content": e.detail,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise e
         except Exception as e:
             logger.error(
                 {
@@ -133,7 +127,4 @@ class QuestionViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Internal server error", "error_content": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise APIException()

@@ -6,7 +6,14 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import (
+    ValidationError,
+    APIException,
+    NotAuthenticated,
+    NotFound,
+    AuthenticationFailed,
+    PermissionDenied,
+)
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import UntypedToken
 
@@ -74,13 +81,7 @@ class AccountViewSet(ViewSet):
                     "error_content": e.detail,
                 }
             )
-            return JsonResponse(
-                {
-                    "message": "Invalid request",
-                    "error_content": e.detail,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise e
         except Exception as e:
             logger.error(
                 {
@@ -89,10 +90,7 @@ class AccountViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Internal server error", "error_content": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise APIException()
 
     @action(detail=False, methods=["get"], url_path="setup_status")
     def get_user_setup_status(self, request):
@@ -119,8 +117,7 @@ class AccountViewSet(ViewSet):
                 user_data["is_password_setup"] = not user.is_default_password
                 user_data["is_security_qa_setup"] = user.is_security_question_set
             return JsonResponse(
-                {"message": "Retrieve user setup status success", "user": user_data},
-                status=status.HTTP_200_OK,
+                {"message": "Retrieve user setup status success", "data": user_data},
             )
         except TokenNotFoundException as e:
             logger.error(
@@ -130,22 +127,25 @@ class AccountViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Token not found"},
-                status=status.HTTP_401_UNAUTHORIZED,
+            raise NotAuthenticated("Token not found in cookie")
+        except TokenError as e:
+            logger.error(
+                {
+                    "event_type": EventType.GET_USER_INFO,
+                    "error_type": ErrorTypes.TOKEN_VALIDATION,
+                    "error_content": str(e),
+                }
             )
+            raise AuthenticationFailed(str(e))
         except CustomUser.DoesNotExist:
             logger.error(
                 {
                     "event_type": EventType.GET_USER_INFO,
                     "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": f"Account with id {payload.get('user_id')} is not existed",
+                    "error_content": f"User with id {payload.get('user_id')} is not existed",
                 }
             )
-            return JsonResponse(
-                {"message": "Account invalid or deleted"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            raise NotFound("Account invalid or deleted")
         except Exception as e:
             logger.error(
                 {
@@ -154,10 +154,7 @@ class AccountViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Internal server error", "error_content": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise APIException()
 
     @action(detail=False, methods=["post"], url_path="password")
     def set_password(self, request):
@@ -171,6 +168,9 @@ class AccountViewSet(ViewSet):
                     "message": "Begin set new password process",
                 }
             )
+            # Validate new password
+            serializer = SetPasswordSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
             # Extract token from request and verify scope
             token = get_token_from_cookie(
                 request, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"], False
@@ -183,9 +183,6 @@ class AccountViewSet(ViewSet):
                     TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
                 ]
             )
-            # Validate new password
-            serializer = SetPasswordSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
             # Update new password for user
             user = CustomUser.objects.get(id=payload.get("user_id"))
             user.set_password(serializer.validated_data["password"])
@@ -209,13 +206,7 @@ class AccountViewSet(ViewSet):
                     "error_content": e.detail,
                 }
             )
-            return JsonResponse(
-                {
-                    "message": "Invalid request",
-                    "error_content": e.detail,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise e
         except TokenNotFoundException as e:
             logger.error(
                 {
@@ -224,10 +215,7 @@ class AccountViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": str(e)},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            raise NotAuthenticated(str(e))
         except TokenError as e:
             logger.error(
                 {
@@ -236,22 +224,16 @@ class AccountViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Invalid token", "error_content": str(e)},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            raise AuthenticationFailed(str(e))
         except CustomUser.DoesNotExist:
             logger.error(
                 {
                     "event_type": EventType.SET_PASSWORD,
                     "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": f"Account with id {payload.get('user_id')} is not existed",
+                    "error_content": f"User with id {payload.get('user_id')} is not existed",
                 }
             )
-            return JsonResponse(
-                {"message": "Account invalid or deleted"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            raise NotFound("Account invalid or deleted")
         except Exception as e:
             logger.error(
                 {
@@ -260,10 +242,7 @@ class AccountViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Internal server error", "error_content": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise APIException()
 
     @action(detail=False, methods=["get", "post"], url_path="security_questions")
     def user_security_questions(self, request):
@@ -283,6 +262,9 @@ class AccountViewSet(ViewSet):
                     "message": "Begin set security question answer process",
                 }
             )
+            # Validate security qa
+            serializer = SetSecurityQASerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
             # Extract token from request and verify scope
             token = get_token_from_cookie(
                 request, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"], False
@@ -290,9 +272,6 @@ class AccountViewSet(ViewSet):
             check_token_validity(token, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"])
             payload = ScopeToken(token)
             payload.verify_scope([TokenScope.PASSWORD_VERIFY_SCOPE])
-            # Validate security qa
-            serializer = SetSecurityQASerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
             # Delete old security question answer of current user
             # and replace with the new one
             logger.info(
@@ -335,13 +314,7 @@ class AccountViewSet(ViewSet):
                     "error_content": e.detail,
                 }
             )
-            return JsonResponse(
-                {
-                    "message": "Invalid request",
-                    "error_content": e.detail,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise e
         except TokenNotFoundException as e:
             logger.error(
                 {
@@ -350,10 +323,7 @@ class AccountViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": str(e)},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            raise NotAuthenticated(str(e))
         except TokenError as e:
             logger.error(
                 {
@@ -362,22 +332,16 @@ class AccountViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Invalid token", "error_content": str(e)},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            raise AuthenticationFailed(str(e))
         except CustomUser.DoesNotExist:
             logger.error(
                 {
                     "event_type": EventType.SET_SECURITY_QA,
                     "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": f"Account with id {payload['user_id']} is not existed",
+                    "error_content": f"User with id {payload['user_id']} is not existed",
                 }
             )
-            return JsonResponse(
-                {"message": "Account invalid or deleted"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            raise NotFound("Account invalid or deleted")
         except Exception as e:
             logger.error(
                 {
@@ -386,10 +350,7 @@ class AccountViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Internal server error", "error_content": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise APIException()
 
     def get_user_security_questions(self, request):
         """
@@ -414,16 +375,13 @@ class AccountViewSet(ViewSet):
                     {
                         "event_type": EventType.GET_USER_SECURITY_QUESTIONS,
                         "error_type": ErrorTypes.UNAUTHORIZED,
-                        "error_content": f"Account with username {username} hasn't setup account",
+                        "error_content": f"User with username {username} hasn't setup account",
                         "is_security_question_set": user.is_security_question_set,
                         "is_default_password": user.is_default_password,
                     }
                 )
-                return JsonResponse(
-                    {
-                        "message": f"Account with username {username} hasn't setup account"
-                    },
-                    status=status.HTTP_401_UNAUTHORIZED,
+                raise PermissionDenied(
+                    f"User with username {username} hasn't setup account, cannot perform this action"
                 )
             security_questions = UserQuestionAnswer.objects.filter(
                 user=user.id
@@ -442,7 +400,7 @@ class AccountViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Retrieve user security questions successful",
-                    "questions": questions_list,
+                    "data": questions_list,
                 }
             )
         except ValidationError as e:
@@ -453,25 +411,18 @@ class AccountViewSet(ViewSet):
                     "error_content": e.detail,
                 }
             )
-            return JsonResponse(
-                {
-                    "message": "Invalid request",
-                    "error_content": e.detail,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise e
         except CustomUser.DoesNotExist:
             logger.error(
                 {
                     "event_type": EventType.GET_USER_SECURITY_QUESTIONS,
                     "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": f"Account with username {username} is not existed",
+                    "error_content": f"User with username {username} is not existed",
                 }
             )
-            return JsonResponse(
-                {"message": f"Account with username {username} is not existed"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            raise NotFound("Account invalid or deleted")
+        except PermissionDenied as e:
+            raise e
         except Exception as e:
             logger.error(
                 {
@@ -480,7 +431,4 @@ class AccountViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Internal server error", "error_content": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise APIException()

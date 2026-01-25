@@ -20,13 +20,13 @@ from rest_framework.routers import DefaultRouter
 from common.views import HealthViewSet
 from users.views.account_views import AccountViewSet
 from users.views.auth_views import AuthViewSet
-from users.views.question_views import QuestionViewSet
+from users.views.security_question_views import SecurityQuestionViewSet
 
 router = DefaultRouter()
 router.register("health", HealthViewSet, basename="health")
 router.register("auth", AuthViewSet, basename="auth")
 router.register("account", AccountViewSet, basename="account")
-router.register("question", QuestionViewSet, basename="question")
+router.register("security_question", SecurityQuestionViewSet, basename="security_question")
 
 urlpatterns = [
     path("api/v1/", include(router.urls)),

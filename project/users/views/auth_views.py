@@ -2,10 +2,16 @@ import logging
 
 from django.http import JsonResponse
 from django.conf import settings
-from rest_framework import status, serializers, response
+from rest_framework import serializers, response
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import (
+    ValidationError,
+    APIException,
+    AuthenticationFailed,
+    PermissionDenied,
+    NotAuthenticated,
+)
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.settings import api_settings
@@ -18,6 +24,7 @@ from ..serializers import (
     TokenTypeSerializer,
 )
 from common.constants import ErrorTypes
+from common.exceptions import Conflict
 from ..constants import EventType, TokenScope, BYPASS_TOKEN_NOTFOUND
 from ..exceptions import SecurityQAValidationException, TokenNotFoundException
 from ..custom_token import ScopeToken
@@ -59,7 +66,7 @@ class AuthViewSet(ViewSet):
                 raise CustomUser.DoesNotExist
             # Prepare cookie metadata and data for response
             response_data = {"message": "Successfully Login"}
-            user_data = {"id": user.id, "username": user.username}
+            data = {"user": {"id": user.id, "username": user.username}}
             cookie_item_list = []
             if user.is_default_password or not user.is_security_question_set:
                 # When user login for the first time, create scope jwt token
@@ -74,10 +81,12 @@ class AuthViewSet(ViewSet):
                         "cookie_max_age": settings.SCOPE_TOKEN_LIFETIME.total_seconds(),
                     }
                 )
+                user_data = data["user"]
                 user_data["first_time_setup"] = True
                 user_data["is_password_setup"] = not user.is_default_password
                 user_data["is_security_qa_setup"] = user.is_security_question_set
-                response_data["scope_exp"] = exp * 1000
+                data["user"] = user_data
+                data["scope_token_exp"] = exp * 1000
             else:
                 refresh = RefreshToken.for_user(user)
                 cookie_item_list.extend(
@@ -98,7 +107,7 @@ class AuthViewSet(ViewSet):
                         },
                     ]
                 )
-            response_data["user"] = user_data
+            response_data["data"] = data
             # Store cookie and data in response
             res = response.Response()
             res = set_cookie_response(cookie_item_list, res)
@@ -121,13 +130,7 @@ class AuthViewSet(ViewSet):
                     "error_content": e.detail,
                 }
             )
-            return JsonResponse(
-                {
-                    "message": "Invalid request",
-                    "error_content": e.detail,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise e
         except CustomUser.DoesNotExist:
             logger.error(
                 {
@@ -136,10 +139,7 @@ class AuthViewSet(ViewSet):
                     "error_content": "Invalid username or password",
                 }
             )
-            return JsonResponse(
-                {"message": "Invalid username or password"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            raise AuthenticationFailed("Invalid username or password")
         except Exception as e:
             logger.error(
                 {
@@ -148,10 +148,7 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Internal server error", "error_content": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise APIException()
 
     @action(detail=False, methods=["post"], url_path="token/qa")
     def generate_question_answer_verification_token(self, request):
@@ -177,14 +174,13 @@ class AuthViewSet(ViewSet):
                         "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
                         "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
                         "error_type": ErrorTypes.UNAUTHORIZED,
-                        "error_content": f"User {username} hasn't setup account",
+                        "error_content": f"User with username {username} hasn't setup account",
                         "is_security_question_set": user.is_security_question_set,
                         "is_default_password": user.is_default_password,
                     }
                 )
-                return JsonResponse(
-                    {"message": f"User {username} hasn't setup account"},
-                    status=status.HTTP_401_UNAUTHORIZED,
+                raise PermissionDenied(
+                    f"User with username {username} hasn't setup account, cannot perform this action"
                 )
             # Verify security question answer
             question_ids = serializer.validated_data["questions"]
@@ -202,7 +198,7 @@ class AuthViewSet(ViewSet):
             for expected, returned in zip(correct_answers, user_answers):
                 if expected != returned:
                     raise SecurityQAValidationException(
-                        "Security answers aren't correct"
+                        "Invalid security credentials provided"
                     )
             # Generate security qa verification token
             token_instance = ScopeToken.for_user(
@@ -222,7 +218,10 @@ class AuthViewSet(ViewSet):
                 res,
             )
             # Convert exp to milliseconds
-            res.data = {"message": "Token generated successfully", "exp": exp * 1000}
+            res.data = {
+                "message": "Token generated successfully",
+                "data": {"scope_token_exp": exp * 1000},
+            }
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
@@ -240,26 +239,17 @@ class AuthViewSet(ViewSet):
                     "error_content": e.detail,
                 }
             )
-            return JsonResponse(
-                {
-                    "message": "Invalid request",
-                    "error_content": e.detail,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise e
         except CustomUser.DoesNotExist:
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
                     "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
                     "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": "Username not found",
+                    "error_content": "User is not existed",
                 }
             )
-            return JsonResponse(
-                {"message": "Username not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            raise AuthenticationFailed("Invalid security credentials provided")
         except SecurityQAValidationException as e:
             logger.error(
                 {
@@ -269,10 +259,9 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Security QA validation failed"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            raise AuthenticationFailed(str(e))
+        except PermissionDenied as e:
+            raise e
         except Exception as e:
             logger.error(
                 {
@@ -282,10 +271,7 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Internal server error", "error_content": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise APIException()
 
     @action(detail=False, methods=["post"], url_path="token/password")
     def generate_password_verification_token(self, request):
@@ -311,14 +297,13 @@ class AuthViewSet(ViewSet):
                         "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
                         "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
                         "error_type": ErrorTypes.UNAUTHORIZED,
-                        "error_content": f"User {username} hasn't setup account",
+                        "error_content": f"User with username {username} hasn't setup account",
                         "is_security_question_set": user.is_security_question_set,
                         "is_default_password": user.is_default_password,
                     }
                 )
-                return JsonResponse(
-                    {"message": f"User {username} hasn't setup account"},
-                    status=status.HTTP_401_UNAUTHORIZED,
+                raise PermissionDenied(
+                    f"User with username {username} hasn't setup account, cannot perform this action"
                 )
             # Validate password
             if not user.check_password(serializer.validated_data["password"]):
@@ -339,7 +324,10 @@ class AuthViewSet(ViewSet):
                 res,
             )
             # Convert exp to milliseconds
-            res.data = {"message": "Token generated successfully", "exp": exp * 1000}
+            res.data = {
+                "message": "Token generated successfully",
+                "data": {"scope_token_exp": exp * 1000},
+            }
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
@@ -357,13 +345,7 @@ class AuthViewSet(ViewSet):
                     "error_content": e.detail,
                 }
             )
-            return JsonResponse(
-                {
-                    "message": "Invalid request",
-                    "error_content": e.detail,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise e
         except CustomUser.DoesNotExist:
             logger.error(
                 {
@@ -373,10 +355,9 @@ class AuthViewSet(ViewSet):
                     "error_content": "Invalid username or password",
                 }
             )
-            return JsonResponse(
-                {"message": "Invalid username or password"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            raise AuthenticationFailed("Invalid security credentials provided")
+        except PermissionDenied as e:
+            raise e
         except Exception as e:
             logger.error(
                 {
@@ -386,10 +367,7 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Internal server error", "error_content": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise APIException()
 
     @action(detail=False, methods=["post"], url_path="token/verify")
     def verify_token(self, request):
@@ -424,13 +402,7 @@ class AuthViewSet(ViewSet):
                     "error_content": e.detail,
                 }
             )
-            return JsonResponse(
-                {
-                    "message": "Invalid request",
-                    "error_content": e.detail,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise e
         except TokenNotFoundException as e:
             logger.error(
                 {
@@ -439,10 +411,7 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": str(e)},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            raise NotAuthenticated(str(e))
         except TokenError as e:
             logger.error(
                 {
@@ -451,10 +420,7 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Invalid token", "error_content": str(e)},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            raise AuthenticationFailed(str(e))
         except Exception as e:
             logger.error(
                 {
@@ -463,10 +429,7 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Internal server error", "error_content": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise APIException()
 
     @action(detail=False, methods=["post"], url_path="token/refresh")
     def refresh_token(self, request):
@@ -525,10 +488,7 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": str(e)},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            raise NotAuthenticated(str(e))
         except TokenError as e:
             logger.error(
                 {
@@ -537,10 +497,7 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Invalid token", "error_content": str(e)},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            raise AuthenticationFailed(str(e))
         except Exception as e:
             logger.error(
                 {
@@ -549,10 +506,7 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Internal server error", "error_content": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise APIException()
 
     @action(detail=False, methods=["post"], url_path="token/scope/delete")
     def delete_scope_token(self, request):
@@ -597,10 +551,7 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": str(e)},
-                status=status.HTTP_409_CONFLICT,
-            )
+            raise Conflict(str(e))
         except Exception as e:
             logger.error(
                 {
@@ -609,10 +560,7 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Internal server error", "error_content": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise APIException()
 
     @action(detail=False, methods=["post"], url_path="logout")
     def delete_refresh_access_token(self, request):
@@ -664,10 +612,7 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": str(e)},
-                status=status.HTTP_409_CONFLICT,
-            )
+            raise Conflict(str(e))
         except Exception as e:
             logger.error(
                 {
@@ -676,7 +621,4 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            return JsonResponse(
-                {"message": "Internal server error", "error_content": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            raise APIException()
