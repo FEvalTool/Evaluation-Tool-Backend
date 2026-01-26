@@ -26,7 +26,9 @@ router = DefaultRouter()
 router.register("health", HealthViewSet, basename="health")
 router.register("auth", AuthViewSet, basename="auth")
 router.register("account", AccountViewSet, basename="account")
-router.register("security_question", SecurityQuestionViewSet, basename="security_question")
+router.register(
+    "security_question", SecurityQuestionViewSet, basename="security_question"
+)
 
 urlpatterns = [
     path("api/v1/", include(router.urls)),

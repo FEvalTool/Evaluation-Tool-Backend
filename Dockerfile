@@ -15,4 +15,4 @@ COPY . /project/
 # Expose ports without publishing them to the host machine 
 # they’ll only be accessible to linked services
 # Detail: https://stackoverflow.com/questions/40801772/what-is-the-difference-between-ports-and-expose-in-docker-compose
-EXPOSE ${BACKEND_DOCKER_PORT}
+EXPOSE 8000
