@@ -18,6 +18,7 @@ exp_per_token_type = {
 
 class TokenFactory:
     """Class to generate token for testing"""
+
     @staticmethod
     def valid_token(token_type, username, scope=None):
         valid_user = CustomUser.objects.get(username=username)

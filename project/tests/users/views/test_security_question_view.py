@@ -55,7 +55,9 @@ class SecurityQuestionsViewsTestCase(CustomAPITestCase):
         self.assertIn("status", error_item_keys)
 
     @mock.patch("users.views.security_question_views.logger")
-    @mock.patch("users.views.security_question_views.SecurityQuestionQuerySerializer.is_valid")
+    @mock.patch(
+        "users.views.security_question_views.SecurityQuestionQuerySerializer.is_valid"
+    )
     def test_get_security_questions_internal_server_error(
         self, mock_validate, mock_logger
     ):
