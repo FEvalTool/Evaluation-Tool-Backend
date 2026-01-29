@@ -92,32 +92,50 @@ class AccountViewSet(ViewSet):
             )
             raise APIException()
 
-    @action(detail=False, methods=["get"], url_path="setup_status")
-    def get_user_setup_status(self, request):
+    @action(detail=False, methods=["get"], url_path="info")
+    def get_user_info(self, request):
         """
-        Endpoint to get user setup status
-        (password setup status/security qa setup status)
+        Endpoint to get user info
         """
         try:
+            logger.info(
+                {
+                    "event_type": EventType.GET_USER_INFO,
+                    "message": "Begin retrieve and vaidate token from cookie",
+                }
+            )
             # Try to find token in cookie
             # (access token priority, if no access token, find scope token)
+            token_type = settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]
             token = get_token_from_cookie(
                 request, settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"], True
             )
             if not token:
+                token_type = settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
                 token = get_token_from_cookie(
                     request, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"], False
                 )
             payload = UntypedToken(token)
+            logger.info(
+                {
+                    "event_type": EventType.GET_USER_INFO,
+                    "message": f"Validate {token_type} token success, extract user data",
+                }
+            )
             user = CustomUser.objects.get(id=payload.get("user_id"))
-            user_data = {"id": user.id, "username": user.username}
-            # Add user setup status if user is newly created one
-            if user.is_default_password or not user.is_security_question_set:
-                user_data["first_time_setup"] = True
-                user_data["is_password_setup"] = not user.is_default_password
-                user_data["is_security_qa_setup"] = user.is_security_question_set
+            serializer = GetAccountInfoSerializer(user)
+            logger.info(
+                {
+                    "event_type": EventType.GET_USER_INFO,
+                    "message": "Complete get user info",
+                }
+            )
             return JsonResponse(
-                {"message": "Retrieve user setup status success", "data": user_data},
+                {
+                    "message": "Successfully retrieve user info",
+                    "data": serializer.data,
+                },
+                status=status.HTTP_200_OK,
             )
         except TokenNotFoundException as e:
             logger.error(
@@ -150,6 +168,90 @@ class AccountViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.GET_USER_INFO,
+                    "error_type": ErrorTypes.EXCEPTION,
+                    "error_content": str(e),
+                }
+            )
+            raise APIException()
+
+    @action(detail=False, methods=["get"], url_path="setup_status")
+    def get_user_setup_status(self, request):
+        """
+        Endpoint to get user setup status
+        (password setup status/security qa setup status)
+        """
+        try:
+            logger.info(
+                {
+                    "event_type": EventType.GET_USER_SETUP_STATUS,
+                    "message": "Begin retrieve and vaidate token from cookie",
+                }
+            )
+            # Try to find token in cookie
+            # (access token priority, if no access token, find scope token)
+            token_type = settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]
+            token = get_token_from_cookie(
+                request, settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"], True
+            )
+            if not token:
+                token_type = settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
+                token = get_token_from_cookie(
+                    request, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"], False
+                )
+            payload = UntypedToken(token)
+            logger.info(
+                {
+                    "event_type": EventType.GET_USER_SETUP_STATUS,
+                    "message": f"Validate {token_type} token success, extract user data",
+                }
+            )
+            user = CustomUser.objects.get(id=payload.get("user_id"))
+            user_data = {"id": user.id, "username": user.username}
+            # Add user setup status if user is newly created one
+            if user.is_default_password or not user.is_security_question_set:
+                user_data["first_time_setup"] = True
+                user_data["is_password_setup"] = not user.is_default_password
+                user_data["is_security_qa_setup"] = user.is_security_question_set
+            logger.info(
+                {
+                    "event_type": EventType.GET_USER_SETUP_STATUS,
+                    "message": "Complete get user setup status",
+                }
+            )
+            return JsonResponse(
+                {"message": "Retrieve user setup status success", "data": user_data},
+            )
+        except TokenNotFoundException as e:
+            logger.error(
+                {
+                    "event_type": EventType.GET_USER_SETUP_STATUS,
+                    "error_type": ErrorTypes.TOKEN_NOT_FOUND,
+                    "error_content": str(e),
+                }
+            )
+            raise NotAuthenticated("Token not found in cookie")
+        except TokenError as e:
+            logger.error(
+                {
+                    "event_type": EventType.GET_USER_SETUP_STATUS,
+                    "error_type": ErrorTypes.TOKEN_VALIDATION,
+                    "error_content": str(e),
+                }
+            )
+            raise AuthenticationFailed(str(e))
+        except CustomUser.DoesNotExist:
+            logger.error(
+                {
+                    "event_type": EventType.GET_USER_SETUP_STATUS,
+                    "error_type": ErrorTypes.UNEXISTED,
+                    "error_content": f"User with id {payload.get('user_id')} is not existed",
+                }
+            )
+            raise NotFound("Account invalid or deleted")
+        except Exception as e:
+            logger.error(
+                {
+                    "event_type": EventType.GET_USER_SETUP_STATUS,
                     "error_type": ErrorTypes.EXCEPTION,
                     "error_content": str(e),
                 }
