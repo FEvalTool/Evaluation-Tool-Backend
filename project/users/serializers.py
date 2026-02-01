@@ -14,7 +14,15 @@ class InitAccountSerializer(serializers.ModelSerializer):
 class GetAccountInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ["id", "username", "name", "phone_number", "dob", "identity_number"]
+        fields = [
+            "id",
+            "username",
+            "name",
+            "phone_number",
+            "dob",
+            "identity_number",
+            "global_role",
+        ]
 
 
 class UserLoginSerializer(serializers.Serializer):

@@ -6,6 +6,12 @@ from common.models import Status
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
+    GLOBAL_ROLES = [
+        ("user", "Regular User"),
+        ("staff", "Staff Member"),
+        ("superadmin", "Super Administrator"),
+    ]
+
     username = models.CharField(
         max_length=150,
         unique=True,
@@ -36,7 +42,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_security_question_set = models.BooleanField(
         default=False, help_text="Is this user set the security question answer"
     )
-
+    global_role = models.CharField(
+        max_length=20,
+        choices=GLOBAL_ROLES,
+        default="user",
+        help_text="Global role for user",
+    )
     USERNAME_FIELD = "username"
 
     def __str__(self):
