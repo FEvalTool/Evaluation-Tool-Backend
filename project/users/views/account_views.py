@@ -18,6 +18,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import UntypedToken
 
 from common.constants import ErrorTypes
+from common.authentication import configure_auth_class
 from ..models import CustomUser, UserQuestionAnswer
 from ..serializers import (
     InitAccountSerializer,
@@ -92,7 +93,20 @@ class AccountViewSet(ViewSet):
             )
             raise APIException()
 
-    @action(detail=False, methods=["get"], url_path="info")
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="info",
+        authentication_classes=[
+            configure_auth_class(
+                cookie_priority=[
+                    settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
+                    settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                ],
+                use_header=True,
+            )
+        ],
+    )
     def get_user_info(self, request):
         """
         Endpoint to get user info
@@ -104,25 +118,7 @@ class AccountViewSet(ViewSet):
                     "message": "Begin retrieve and vaidate token from cookie",
                 }
             )
-            # Try to find token in cookie
-            # (access token priority, if no access token, find scope token)
-            token_type = settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]
-            token = get_token_from_cookie(
-                request, settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"], True
-            )
-            if not token:
-                token_type = settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
-                token = get_token_from_cookie(
-                    request, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"], False
-                )
-            payload = UntypedToken(token)
-            logger.info(
-                {
-                    "event_type": EventType.GET_USER_INFO,
-                    "message": f"Validate {token_type} token success, extract user data",
-                }
-            )
-            user = CustomUser.objects.get(id=payload.get("user_id"))
+            user = request.user
             serializer = GetAccountInfoSerializer(user)
             logger.info(
                 {
@@ -137,33 +133,6 @@ class AccountViewSet(ViewSet):
                 },
                 status=status.HTTP_200_OK,
             )
-        except TokenNotFoundException as e:
-            logger.error(
-                {
-                    "event_type": EventType.GET_USER_INFO,
-                    "error_type": ErrorTypes.TOKEN_NOT_FOUND,
-                    "error_content": str(e),
-                }
-            )
-            raise NotAuthenticated("Token not found in cookie")
-        except TokenError as e:
-            logger.error(
-                {
-                    "event_type": EventType.GET_USER_INFO,
-                    "error_type": ErrorTypes.TOKEN_VALIDATION,
-                    "error_content": str(e),
-                }
-            )
-            raise AuthenticationFailed(str(e))
-        except CustomUser.DoesNotExist:
-            logger.error(
-                {
-                    "event_type": EventType.GET_USER_INFO,
-                    "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": f"User with id {payload.get('user_id')} is not existed",
-                }
-            )
-            raise NotFound("Account invalid or deleted")
         except Exception as e:
             logger.error(
                 {
