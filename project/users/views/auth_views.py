@@ -23,9 +23,8 @@ from ..serializers import (
     GetSecurityQAVerificationTokenSerializer,
     TokenTypeSerializer,
 )
-from common.constants import ErrorTypes
+from common.constants import ErrorTypes, EventType, TokenScope, BYPASS_TOKEN_NOTFOUND
 from common.exceptions import Conflict
-from ..constants import EventType, TokenScope, BYPASS_TOKEN_NOTFOUND
 from ..exceptions import SecurityQAValidationException, TokenNotFoundException
 from ..custom_token import ScopeToken
 from ..utils import (

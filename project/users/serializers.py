@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from common.models import Status
-from .constants import VALID_SECURITY_QA_NUMS
+from common.constants import VALID_SECURITY_QA_NUMS
 from .validators import UserValidators
 from .models import CustomUser, SecurityQuestion
 

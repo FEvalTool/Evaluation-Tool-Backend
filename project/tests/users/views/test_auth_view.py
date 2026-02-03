@@ -6,8 +6,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from users.models import UserQuestionAnswer, CustomUser
-from users.constants import TokenScope, BYPASS_TOKEN_NOTFOUND, EventType
-from common.constants import ErrorTypes
+from common.constants import ErrorTypes, TokenScope, BYPASS_TOKEN_NOTFOUND, EventType
 from users.redis.tokens import RefreshTokenRedis, ScopeTokenRedis
 from tests.helpers.setup_mock_accounts import (
     setup_mock_accounts,

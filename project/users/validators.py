@@ -2,7 +2,7 @@ from django.core.validators import RegexValidator
 from rest_framework import serializers
 import re
 
-from .constants import PASSWORD_FORMAT
+from common.constants import PASSWORD_FORMAT
 
 
 class UserValidators:

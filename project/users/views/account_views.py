@@ -17,7 +17,7 @@ from rest_framework.exceptions import (
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import UntypedToken
 
-from common.constants import ErrorTypes
+from common.constants import ErrorTypes, EventType, TokenScope
 from common.authentication import configure_auth_class
 from ..models import CustomUser, UserQuestionAnswer
 from ..serializers import (
@@ -27,7 +27,6 @@ from ..serializers import (
     SetSecurityQASerializer,
     GetSecurityQuestionParamsSerializer,
 )
-from ..constants import EventType, TokenScope
 from ..utils import generate_username, get_token_from_cookie, check_token_validity
 from ..custom_token import ScopeToken
 from ..exceptions import TokenNotFoundException
