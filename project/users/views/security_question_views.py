@@ -7,7 +7,7 @@ from rest_framework.exceptions import ValidationError, APIException
 
 from common.constants import ErrorTypes, EventType
 from ..models import SecurityQuestion
-from ..serializers import (
+from ..serializers.security_questions_serializers import (
     CreateSecurityQuestionSerializer,
     SecurityQuestionQuerySerializer,
     SecurityQuestionSerializer,

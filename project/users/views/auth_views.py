@@ -18,10 +18,10 @@ from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.exceptions import TokenError
 
 from ..models import CustomUser, UserQuestionAnswer
-from ..serializers import (
+from ..serializers.auth_serializers import (
     UserLoginSerializer,
     GetSecurityQAVerificationTokenSerializer,
-    TokenTypeSerializer,
+    VerifyTokenSerializer,
 )
 from common.constants import ErrorTypes, EventType, TokenScope, BYPASS_TOKEN_NOTFOUND
 from common.exceptions import Conflict
@@ -380,7 +380,7 @@ class AuthViewSet(ViewSet):
                     "message": "Begin verify token",
                 }
             )
-            serializer = TokenTypeSerializer(data=request.data)
+            serializer = VerifyTokenSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             token = get_token_from_cookie(
                 request, serializer.validated_data["token_type"], False

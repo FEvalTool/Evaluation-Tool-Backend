@@ -2,7 +2,6 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.utils import timezone
 from .validators import UserValidators
-from common.models import Status
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
@@ -52,6 +51,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+
+
+class Status(models.TextChoices):
+    unofficial = "Unofficial", "Unofficial"
+    official = "Official", "Official"
+    outdated = "Outdated", "Outdated"
 
 
 class SecurityQuestion(models.Model):

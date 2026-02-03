@@ -1,12 +1,11 @@
 from rest_framework import serializers
-from common.models import Status
-from .validators import UserValidators
-from .models import CustomUser, SecurityQuestion
 
-VALID_SECURITY_QA_NUMS = 3
+from ..validators import UserValidators
+from ..models import CustomUser, SecurityQuestion
+from .constants import VALID_SECURITY_QA_NUMS
 
 
-class InitAccountSerializer(serializers.ModelSerializer):
+class CreateAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ["name", "phone_number", "dob", "identity_number"]
@@ -24,11 +23,6 @@ class GetAccountInfoSerializer(serializers.ModelSerializer):
             "identity_number",
             "global_role",
         ]
-
-
-class UserLoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    password = serializers.CharField(write_only=True)
 
 
 class SetPasswordSerializer(serializers.Serializer):
@@ -67,43 +61,3 @@ class SetSecurityQASerializer(serializers.Serializer):
 
 class GetSecurityQuestionParamsSerializer(serializers.Serializer):
     username = serializers.CharField()
-
-
-class GetSecurityQAVerificationTokenSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    questions = serializers.ListField(
-        child=serializers.IntegerField(),
-        min_length=VALID_SECURITY_QA_NUMS,
-        max_length=VALID_SECURITY_QA_NUMS,
-    )
-    answers = serializers.ListField(
-        child=serializers.CharField(),
-        min_length=VALID_SECURITY_QA_NUMS,
-        max_length=VALID_SECURITY_QA_NUMS,
-    )
-
-    def validate_questions(self, value):
-        # Validate number of questions is exactly equal to 3
-        if len(set(value)) != VALID_SECURITY_QA_NUMS:
-            raise serializers.ValidationError(
-                f"Number of Questions must equals to {VALID_SECURITY_QA_NUMS}"
-            )
-        return value
-
-
-class TokenTypeSerializer(serializers.Serializer):
-    token_type = serializers.CharField()
-
-
-class CreateSecurityQuestionSerializer(serializers.Serializer):
-    content = serializers.CharField()
-
-
-class SecurityQuestionQuerySerializer(serializers.Serializer):
-    status = serializers.ChoiceField(choices=Status.choices, required=False)
-
-
-class SecurityQuestionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SecurityQuestion
-        fields = "__all__"

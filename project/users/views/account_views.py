@@ -20,8 +20,8 @@ from rest_framework_simplejwt.tokens import UntypedToken
 from common.constants import ErrorTypes, EventType, TokenScope
 from common.authentication import configure_auth_class
 from ..models import CustomUser, UserQuestionAnswer
-from ..serializers import (
-    InitAccountSerializer,
+from ..serializers.account_serializers import (
+    CreateAccountSerializer,
     GetAccountInfoSerializer,
     SetPasswordSerializer,
     SetSecurityQASerializer,
@@ -51,7 +51,7 @@ class AccountViewSet(ViewSet):
                     "message": "Begin initialize user account",
                 }
             )
-            serializer = InitAccountSerializer(data=request.data)
+            serializer = CreateAccountSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             data = serializer.validated_data
             # Set initial password and username
