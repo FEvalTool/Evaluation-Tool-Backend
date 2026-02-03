@@ -57,7 +57,3 @@ class SetSecurityQASerializer(serializers.Serializer):
         id_to_instance = {q.id: q for q in questions_from_db}
         ordered_questions = [id_to_instance[qid] for qid in value]
         return ordered_questions
-
-
-class GetSecurityQuestionParamsSerializer(serializers.Serializer):
-    username = serializers.CharField()
