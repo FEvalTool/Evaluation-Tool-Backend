@@ -6,8 +6,8 @@ from rest_framework_simplejwt.exceptions import TokenError
 from .exceptions import TokenNotFoundException
 from .models import CustomUser
 from .custom_token import ScopeToken
-from .redis.tokens import RefreshTokenRedis, ScopeTokenRedis
-from .redis.base import RedisBase
+from common.redis.tokens import RefreshTokenRedis, ScopeTokenRedis
+from common.redis.base import RedisBase
 
 
 def generate_username(name):
