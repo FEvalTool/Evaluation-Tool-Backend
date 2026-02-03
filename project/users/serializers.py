@@ -1,8 +1,9 @@
 from rest_framework import serializers
 from common.models import Status
-from common.constants import VALID_SECURITY_QA_NUMS
 from .validators import UserValidators
 from .models import CustomUser, SecurityQuestion
+
+VALID_SECURITY_QA_NUMS = 3
 
 
 class InitAccountSerializer(serializers.ModelSerializer):

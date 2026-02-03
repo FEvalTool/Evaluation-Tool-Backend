@@ -2,8 +2,6 @@ from django.core.validators import RegexValidator
 from rest_framework import serializers
 import re
 
-from common.constants import PASSWORD_FORMAT
-
 
 class UserValidators:
     phone_validator = RegexValidator(
@@ -17,5 +15,12 @@ class UserValidators:
 
     @staticmethod
     def password_validator(password):
+        PASSWORD_FORMAT = (
+            r"^(?=.*[a-z])"  # at least one lowercase letter
+            r"(?=.*[A-Z])"  # at least one uppercase letter
+            r"(?=.*\d)"  # at least one digit
+            r"(?=.*[@$!%*?&])"  # at least one special character
+            r"[A-Za-z\d@$!%*?&]{12,}$"  # at least 12 characters long
+        )
         if re.search(PASSWORD_FORMAT, password) is None:
             raise serializers.ValidationError("Incorrect password format")

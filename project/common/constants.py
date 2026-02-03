@@ -30,14 +30,4 @@ class EventType:
     GET_USER_SETUP_STATUS = "GET_USER_SETUP_STATUS"
 
 
-PASSWORD_FORMAT = (
-    r"^(?=.*[a-z])"  # at least one lowercase letter
-    r"(?=.*[A-Z])"  # at least one uppercase letter
-    r"(?=.*\d)"  # at least one digit
-    r"(?=.*[@$!%*?&])"  # at least one special character
-    r"[A-Za-z\d@$!%*?&]{12,}$"  # at least 12 characters long
-)
-
-VALID_SECURITY_QA_NUMS = 3
-
 BYPASS_TOKEN_NOTFOUND = "bypass_token_notfound_error"
