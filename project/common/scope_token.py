@@ -3,6 +3,11 @@ from rest_framework_simplejwt.tokens import Token
 from rest_framework_simplejwt.exceptions import TokenError
 
 
+class ScopeTokenType:
+    PASSWORD_VERIFY_SCOPE = "PASSWORD_VERIFY_SCOPE"
+    SECURITY_QUESTION_VERIFY_SCOPE = "SECURITY_QUESTION_VERIFY_SCOPE"
+
+
 class ScopeToken(Token):
     token_type = "scope"
     lifetime = settings.SCOPE_TOKEN_LIFETIME

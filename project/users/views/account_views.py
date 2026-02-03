@@ -13,7 +13,8 @@ from rest_framework.exceptions import (
     PermissionDenied,
 )
 
-from common.constants import ErrorTypes, EventType, TokenScope
+from common.constants import ErrorTypes, EventType
+from common.scope_token import ScopeTokenType
 from common.authentication import configure_auth_class
 from ..models import CustomUser, UserQuestionAnswer
 from ..serializers.account_serializers import (
@@ -195,8 +196,8 @@ class AccountViewSet(ViewSet):
             configure_auth_class(
                 cookie_priority=[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]],
                 valid_scopes=[
-                    TokenScope.PASSWORD_VERIFY_SCOPE,
-                    TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
+                    ScopeTokenType.PASSWORD_VERIFY_SCOPE,
+                    ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
                 ],
             )
         ],
@@ -264,7 +265,7 @@ class AccountViewSet(ViewSet):
         authentication_classes=[
             configure_auth_class(
                 cookie_priority=[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]],
-                valid_scopes=[TokenScope.PASSWORD_VERIFY_SCOPE],
+                valid_scopes=[ScopeTokenType.PASSWORD_VERIFY_SCOPE],
             )
         ],
     )

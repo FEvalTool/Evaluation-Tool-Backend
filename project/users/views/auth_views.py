@@ -23,7 +23,8 @@ from ..serializers.auth_serializers import (
     GetSecurityQAVerificationTokenSerializer,
     VerifyTokenSerializer,
 )
-from common.constants import ErrorTypes, EventType, TokenScope, BYPASS_TOKEN_NOTFOUND
+from common.constants import ErrorTypes, EventType, BYPASS_TOKEN_NOTFOUND
+from common.scope_token import ScopeTokenType
 from common.exceptions import Conflict
 from ..exceptions import SecurityQAValidationException, TokenNotFoundException
 from ..custom_token import ScopeToken
@@ -70,7 +71,7 @@ class AuthViewSet(ViewSet):
             if user.is_default_password or not user.is_security_question_set:
                 # When user login for the first time, create scope jwt token
                 scope_token = ScopeToken.for_user(
-                    user, TokenScope.PASSWORD_VERIFY_SCOPE
+                    user, ScopeTokenType.PASSWORD_VERIFY_SCOPE
                 )
                 exp = scope_token.payload.get("exp")
                 cookie_item_list.append(
@@ -158,7 +159,7 @@ class AuthViewSet(ViewSet):
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
+                    "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
                     "message": "Begin generate security qa verification token",
                 }
             )
@@ -171,7 +172,7 @@ class AuthViewSet(ViewSet):
                 logger.error(
                     {
                         "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                        "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
+                        "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
                         "error_type": ErrorTypes.UNAUTHORIZED,
                         "error_content": f"User with username {username} hasn't setup account",
                         "is_security_question_set": user.is_security_question_set,
@@ -201,7 +202,7 @@ class AuthViewSet(ViewSet):
                     )
             # Generate security qa verification token
             token_instance = ScopeToken.for_user(
-                user, TokenScope.SECURITY_QUESTION_VERIFY_SCOPE
+                user, ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE
             )
             token = str(token_instance)
             exp = token_instance.payload.get("exp")
@@ -224,7 +225,7 @@ class AuthViewSet(ViewSet):
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
+                    "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
                     "message": "Get security qa verification token successfully",
                     "username": username,
                 }
@@ -234,7 +235,7 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
+                    "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
                     "error_content": e.detail,
                 }
             )
@@ -243,7 +244,7 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
+                    "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
                     "error_type": ErrorTypes.UNEXISTED,
                     "error_content": "User is not existed",
                 }
@@ -253,7 +254,7 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
+                    "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
                     "error_type": ErrorTypes.SECURITY_QA_VALIDATION,
                     "error_content": str(e),
                 }
@@ -265,7 +266,7 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": TokenScope.SECURITY_QUESTION_VERIFY_SCOPE,
+                    "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
                     "error_type": ErrorTypes.EXCEPTION,
                     "error_content": str(e),
                 }
@@ -281,7 +282,7 @@ class AuthViewSet(ViewSet):
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
+                    "scope": ScopeTokenType.PASSWORD_VERIFY_SCOPE,
                     "message": "Begin generate password verification token",
                 }
             )
@@ -294,7 +295,7 @@ class AuthViewSet(ViewSet):
                 logger.error(
                     {
                         "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                        "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
+                        "scope": ScopeTokenType.PASSWORD_VERIFY_SCOPE,
                         "error_type": ErrorTypes.UNAUTHORIZED,
                         "error_content": f"User with username {username} hasn't setup account",
                         "is_security_question_set": user.is_security_question_set,
@@ -308,7 +309,9 @@ class AuthViewSet(ViewSet):
             if not user.check_password(serializer.validated_data["password"]):
                 raise CustomUser.DoesNotExist
             # Generate password verification token
-            token_instance = ScopeToken.for_user(user, TokenScope.PASSWORD_VERIFY_SCOPE)
+            token_instance = ScopeToken.for_user(
+                user, ScopeTokenType.PASSWORD_VERIFY_SCOPE
+            )
             token = str(token_instance)
             exp = token_instance.payload.get("exp")
             res = response.Response()
@@ -330,7 +333,7 @@ class AuthViewSet(ViewSet):
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
+                    "scope": ScopeTokenType.PASSWORD_VERIFY_SCOPE,
                     "message": "Get password verification token successfully",
                     "username": username,
                 }
@@ -340,7 +343,7 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
+                    "scope": ScopeTokenType.PASSWORD_VERIFY_SCOPE,
                     "error_content": e.detail,
                 }
             )
@@ -349,7 +352,7 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
+                    "scope": ScopeTokenType.PASSWORD_VERIFY_SCOPE,
                     "error_type": ErrorTypes.UNEXISTED,
                     "error_content": "Invalid username or password",
                 }
@@ -361,7 +364,7 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": TokenScope.PASSWORD_VERIFY_SCOPE,
+                    "scope": ScopeTokenType.PASSWORD_VERIFY_SCOPE,
                     "error_type": ErrorTypes.EXCEPTION,
                     "error_content": str(e),
                 }
