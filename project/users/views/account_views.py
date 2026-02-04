@@ -14,8 +14,8 @@ from rest_framework.exceptions import (
 )
 
 from common.constants import ErrorTypes, EventType
-from common.scope_token import ScopeTokenType
-from common.authentication import configure_auth_class
+from common.auth.tokens import ScopeTokenPurpose
+from common.auth.authentication import configure_auth
 from ..models import CustomUser, UserQuestionAnswer
 from ..serializers.account_serializers import (
     CreateAccountSerializer,
@@ -92,7 +92,7 @@ class AccountViewSet(ViewSet):
         methods=["get"],
         url_path="info",
         authentication_classes=[
-            configure_auth_class(
+            configure_auth(
                 cookie_priority=[
                     settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
                     settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
@@ -142,7 +142,7 @@ class AccountViewSet(ViewSet):
         methods=["get"],
         url_path="setup_status",
         authentication_classes=[
-            configure_auth_class(
+            configure_auth(
                 cookie_priority=[
                     settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
                     settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
@@ -193,11 +193,11 @@ class AccountViewSet(ViewSet):
         methods=["post"],
         url_path="password",
         authentication_classes=[
-            configure_auth_class(
+            configure_auth(
                 cookie_priority=[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]],
                 valid_scopes=[
-                    ScopeTokenType.PASSWORD_VERIFY_SCOPE,
-                    ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
+                    ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE,
+                    ScopeTokenPurpose.SECURITY_QUESTION_VERIFY_SCOPE,
                 ],
             )
         ],
@@ -263,9 +263,9 @@ class AccountViewSet(ViewSet):
         methods=["post"],
         url_path="security_qa",
         authentication_classes=[
-            configure_auth_class(
+            configure_auth(
                 cookie_priority=[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]],
-                valid_scopes=[ScopeTokenType.PASSWORD_VERIFY_SCOPE],
+                valid_scopes=[ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE],
             )
         ],
     )

@@ -23,16 +23,15 @@ from ..serializers.auth_serializers import (
     GetSecurityQAVerificationTokenSerializer,
     VerifyTokenSerializer,
 )
-from common.constants import ErrorTypes, EventType, BYPASS_TOKEN_NOTFOUND
-from common.scope_token import ScopeTokenType
-from common.exceptions import Conflict
-from ..custom_token import ScopeToken
-from ..utils import (
-    get_token_from_cookie,
+from common.constants import ErrorTypes, EventType
+from common.auth.tokens import ScopeToken, ScopeTokenPurpose
+from common.auth.utils import (
+    get_token_from_cookies,
     store_blacklist_token,
     check_token_validity,
-    set_cookie_response,
+    set_auth_cookies,
 )
+from common.exceptions import Conflict
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +69,7 @@ class AuthViewSet(ViewSet):
             if user.is_default_password or not user.is_security_question_set:
                 # When user login for the first time, create scope jwt token
                 scope_token = ScopeToken.for_user(
-                    user, ScopeTokenType.PASSWORD_VERIFY_SCOPE
+                    user, ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE
                 )
                 exp = scope_token.payload.get("exp")
                 cookie_item_list.append(
@@ -91,25 +90,21 @@ class AuthViewSet(ViewSet):
                 cookie_item_list.extend(
                     [
                         {
-                            "cookie_key": settings.COOKIE_SETTINGS[
-                                "AUTH_COOKIE_ACCESS"
-                            ],
-                            "cookie_value": str(refresh.access_token),
-                            "cookie_max_age": api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
+                            "key": settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
+                            "value": str(refresh.access_token),
+                            "max_age": api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
                         },
                         {
-                            "cookie_key": settings.COOKIE_SETTINGS[
-                                "AUTH_COOKIE_REFRESH"
-                            ],
-                            "cookie_value": str(refresh),
-                            "cookie_max_age": api_settings.REFRESH_TOKEN_LIFETIME.total_seconds(),
+                            "key": settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"],
+                            "value": str(refresh),
+                            "max_age": api_settings.REFRESH_TOKEN_LIFETIME.total_seconds(),
                         },
                     ]
                 )
             response_data["data"] = data
             # Store cookie and data in response
             res = response.Response()
-            res = set_cookie_response(cookie_item_list, res)
+            res = set_auth_cookies(res, cookie_item_list)
             res.data = response_data
             logger.info(
                 {
@@ -158,7 +153,7 @@ class AuthViewSet(ViewSet):
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
+                    "scope": ScopeTokenPurpose.SECURITY_QUESTION_VERIFY_SCOPE,
                     "message": "Begin generate security qa verification token",
                 }
             )
@@ -171,7 +166,7 @@ class AuthViewSet(ViewSet):
                 logger.error(
                     {
                         "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                        "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
+                        "scope": ScopeTokenPurpose.SECURITY_QUESTION_VERIFY_SCOPE,
                         "error_type": ErrorTypes.UNAUTHORIZED,
                         "error_content": f"User with username {username} hasn't setup account",
                         "is_security_question_set": user.is_security_question_set,
@@ -199,20 +194,20 @@ class AuthViewSet(ViewSet):
                     raise AuthenticationFailed("Invalid security credentials provided")
             # Generate security qa verification token
             token_instance = ScopeToken.for_user(
-                user, ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE
+                user, ScopeTokenPurpose.SECURITY_QUESTION_VERIFY_SCOPE
             )
             token = str(token_instance)
             exp = token_instance.payload.get("exp")
             res = response.Response()
-            res = set_cookie_response(
+            res = set_auth_cookies(
+                res,
                 [
                     {
-                        "cookie_key": settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
-                        "cookie_value": token,
-                        "cookie_max_age": settings.SCOPE_TOKEN_LIFETIME.total_seconds(),
+                        "key": settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                        "value": token,
+                        "max_age": settings.SCOPE_TOKEN_LIFETIME.total_seconds(),
                     }
                 ],
-                res,
             )
             # Convert exp to milliseconds
             res.data = {
@@ -222,7 +217,7 @@ class AuthViewSet(ViewSet):
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
+                    "scope": ScopeTokenPurpose.SECURITY_QUESTION_VERIFY_SCOPE,
                     "message": "Get security qa verification token successfully",
                     "username": username,
                 }
@@ -232,7 +227,7 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
+                    "scope": ScopeTokenPurpose.SECURITY_QUESTION_VERIFY_SCOPE,
                     "error_content": e.detail,
                 }
             )
@@ -247,7 +242,7 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
+                    "scope": ScopeTokenPurpose.SECURITY_QUESTION_VERIFY_SCOPE,
                     "error_type": error_type,
                     "error_content": error_message,
                 }
@@ -259,7 +254,7 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
+                    "scope": ScopeTokenPurpose.SECURITY_QUESTION_VERIFY_SCOPE,
                     "error_type": ErrorTypes.EXCEPTION,
                     "error_content": str(e),
                 }
@@ -275,7 +270,7 @@ class AuthViewSet(ViewSet):
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": ScopeTokenType.PASSWORD_VERIFY_SCOPE,
+                    "scope": ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE,
                     "message": "Begin generate password verification token",
                 }
             )
@@ -288,7 +283,7 @@ class AuthViewSet(ViewSet):
                 logger.error(
                     {
                         "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                        "scope": ScopeTokenType.PASSWORD_VERIFY_SCOPE,
+                        "scope": ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE,
                         "error_type": ErrorTypes.UNAUTHORIZED,
                         "error_content": f"User with username {username} hasn't setup account",
                         "is_security_question_set": user.is_security_question_set,
@@ -303,20 +298,20 @@ class AuthViewSet(ViewSet):
                 raise CustomUser.DoesNotExist
             # Generate password verification token
             token_instance = ScopeToken.for_user(
-                user, ScopeTokenType.PASSWORD_VERIFY_SCOPE
+                user, ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE
             )
             token = str(token_instance)
             exp = token_instance.payload.get("exp")
             res = response.Response()
-            res = set_cookie_response(
+            res = set_auth_cookies(
+                res,
                 [
                     {
-                        "cookie_key": settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
-                        "cookie_value": token,
-                        "cookie_max_age": settings.SCOPE_TOKEN_LIFETIME.total_seconds(),
+                        "key": settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                        "value": token,
+                        "max_age": settings.SCOPE_TOKEN_LIFETIME.total_seconds(),
                     }
                 ],
-                res,
             )
             # Convert exp to milliseconds
             res.data = {
@@ -326,7 +321,7 @@ class AuthViewSet(ViewSet):
             logger.info(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": ScopeTokenType.PASSWORD_VERIFY_SCOPE,
+                    "scope": ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE,
                     "message": "Get password verification token successfully",
                     "username": username,
                 }
@@ -336,7 +331,7 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": ScopeTokenType.PASSWORD_VERIFY_SCOPE,
+                    "scope": ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE,
                     "error_content": e.detail,
                 }
             )
@@ -345,7 +340,7 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": ScopeTokenType.PASSWORD_VERIFY_SCOPE,
+                    "scope": ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE,
                     "error_type": ErrorTypes.UNEXISTED,
                     "error_content": "Invalid username or password",
                 }
@@ -357,7 +352,7 @@ class AuthViewSet(ViewSet):
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": ScopeTokenType.PASSWORD_VERIFY_SCOPE,
+                    "scope": ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE,
                     "error_type": ErrorTypes.EXCEPTION,
                     "error_content": str(e),
                 }
@@ -373,13 +368,27 @@ class AuthViewSet(ViewSet):
             logger.info(
                 {
                     "event_type": EventType.VERIFY_TOKEN,
-                    "message": "Begin verify token",
+                    "message": "Begin verify token - validate request process",
                 }
             )
             serializer = VerifyTokenSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-            token = get_token_from_cookie(
-                request, serializer.validated_data["token_type"], False
+            logger.info(
+                {
+                    "event_type": EventType.VERIFY_TOKEN,
+                    "message": "Verify token - retrieve token process",
+                }
+            )
+            token, token_type = get_token_from_cookies(
+                request, [serializer.validated_data["token_type"]]
+            )
+            if token is None:
+                raise NotAuthenticated("Token not found")
+            logger.info(
+                {
+                    "event_type": EventType.VERIFY_TOKEN,
+                    "message": f"Verify token - validate {token_type} token process",
+                }
             )
             check_token_validity(token, serializer.validated_data["token_type"])
             logger.info(
@@ -435,15 +444,27 @@ class AuthViewSet(ViewSet):
             logger.info(
                 {
                     "event_type": EventType.REFRESH_TOKEN,
-                    "message": "Begin refresh access token",
+                    "message": "Begin refresh access token - retrieve token process",
                 }
             )
-            token = get_token_from_cookie(
-                request, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"], False
+            token = get_token_from_cookies(
+                request, [settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]]
             )
             # Check if refresh token is valid and not in blacklisted
+            logger.info(
+                {
+                    "event_type": EventType.REFRESH_TOKEN,
+                    "message": "Refresh access token - validate token process",
+                }
+            )
             check_token_validity(token, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"])
             # Get new access and refresh token
+            logger.info(
+                {
+                    "event_type": EventType.REFRESH_TOKEN,
+                    "message": "Refresh access token - refresh token process",
+                }
+            )
             serializer = TokenRefreshSerializer(data={"refresh": token})
             serializer.is_valid()
             # Store old refresh token in blacklist
@@ -454,19 +475,19 @@ class AuthViewSet(ViewSet):
             response_data = {"message": "Refresh token successful"}
             cookie_item_list = [
                 {
-                    "cookie_key": settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
-                    "cookie_value": serializer.validated_data["access"],
-                    "cookie_max_age": api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
+                    "key": settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
+                    "value": serializer.validated_data["access"],
+                    "max_age": api_settings.ACCESS_TOKEN_LIFETIME.total_seconds(),
                 },
                 {
-                    "cookie_key": settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"],
-                    "cookie_value": serializer.validated_data["refresh"],
-                    "cookie_max_age": api_settings.REFRESH_TOKEN_LIFETIME.total_seconds(),
+                    "key": settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"],
+                    "value": serializer.validated_data["refresh"],
+                    "max_age": api_settings.REFRESH_TOKEN_LIFETIME.total_seconds(),
                 },
             ]
             # Store cookie and data in response
             res = response.Response()
-            res = set_cookie_response(cookie_item_list, res)
+            res = set_auth_cookies(res, cookie_item_list)
             res.data = response_data
             logger.info(
                 {
@@ -512,21 +533,25 @@ class AuthViewSet(ViewSet):
             logger.info(
                 {
                     "event_type": EventType.DELETE_SCOPE_TOKEN,
-                    "message": "Begin delete scope token from cookies",
+                    "message": "Begin delete scope token from cookies - retrieve token process",
                 }
             )
-            bypass_token_notfound_err = request.data.get(BYPASS_TOKEN_NOTFOUND, True)
             res = response.Response()
             # Validate token existence
-            token = get_token_from_cookie(
+            token, _ = get_token_from_cookies(
                 request,
-                settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
-                bypass_token_notfound_err,
+                [settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]],
             )
-            # Delete scope token from cookies
-            res.delete_cookie(key=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"])
-            # Store deleted scope token in blacklist
-            if token:
+            if token is not None:
+                logger.info(
+                    {
+                        "event_type": EventType.DELETE_SCOPE_TOKEN,
+                        "message": "Delete scope token from cookies - delete token process",
+                    }
+                )
+                # Delete scope token from cookies
+                res.delete_cookie(key=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"])
+                # Store deleted scope token in blacklist
                 store_blacklist_token(
                     token, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
                 )
@@ -567,27 +592,37 @@ class AuthViewSet(ViewSet):
             logger.info(
                 {
                     "event_type": EventType.LOGOUT,
-                    "message": "Begin logout",
+                    "message": "Begin logout - retrieve token process",
                 }
             )
-            bypass_token_notfound_err = request.data.get(BYPASS_TOKEN_NOTFOUND, True)
             # Validate token existence
-            get_token_from_cookie(
+            access_token, _ = get_token_from_cookies(
                 request,
-                settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
-                bypass_token_notfound_err,
+                [settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]],
             )
-            refresh_token = get_token_from_cookie(
+            refresh_token, _ = get_token_from_cookies(
                 request,
-                settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"],
-                bypass_token_notfound_err,
+                [settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]],
             )
             res = response.Response()
             # Delete tokens from cookies
-            res.delete_cookie(key=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"])
-            res.delete_cookie(key=settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"])
-            # Store deleted refresh token in blacklist
-            if refresh_token:
+            if access_token is not None:
+                logger.info(
+                    {
+                        "event_type": EventType.LOGOUT,
+                        "message": "Logout - delete access token from cookie process",
+                    }
+                )
+                res.delete_cookie(key=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"])
+            if refresh_token is not None:
+                logger.info(
+                    {
+                        "event_type": EventType.LOGOUT,
+                        "message": "Begin logout - delete refresh token from cookie and blacklist token process",
+                    }
+                )
+                res.delete_cookie(key=settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"])
+                # Store deleted refresh token in blacklist
                 store_blacklist_token(
                     refresh_token, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
                 )

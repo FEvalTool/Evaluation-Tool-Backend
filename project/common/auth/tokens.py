@@ -1,6 +1,16 @@
 from django.conf import settings
-from rest_framework_simplejwt.tokens import Token
+from rest_framework_simplejwt.tokens import (
+    Token,
+    AccessToken,
+    RefreshToken,
+    UntypedToken,
+)
 from rest_framework_simplejwt.exceptions import TokenError
+
+
+class ScopeTokenPurpose:
+    PASSWORD_VERIFY_SCOPE = "PASSWORD_VERIFY_SCOPE"
+    SECURITY_QUESTION_VERIFY_SCOPE = "SECURITY_QUESTION_VERIFY_SCOPE"
 
 
 class ScopeToken(Token):
