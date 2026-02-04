@@ -5,8 +5,7 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken, UntypedToken
 from rest_framework_simplejwt.exceptions import TokenError
 
-from .redis.base import RedisBase
-from .redis.tokens import RefreshTokenRedis, ScopeTokenRedis
+from .redis import RedisBase, RefreshTokenRedis, ScopeTokenRedis
 from .scope_token import ScopeToken
 from .constants import EventType, ErrorTypes
 
