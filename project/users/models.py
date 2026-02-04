@@ -52,6 +52,40 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.username
 
+    @classmethod
+    def generate_username_from_name(cls, name):
+        """
+        Generate a unique username from a full name.
+
+        Format: LastnameFirstInitials + incrementing number
+        Example: "Tran Anh Vu" -> "VuTA1", "VuTA2", etc.
+
+        Parameters
+        ----------
+        name : str
+            Full name to generate username from
+
+        Returns
+        -------
+        str
+            Generated unique username
+        """
+        # Normalize whitespace
+        normalized_name = " ".join(name.split())
+        name_parts = normalized_name.split(" ")
+
+        # Create prefix: LastnameFirstInitials
+        prefix = (
+            f"{name_parts[-1].capitalize()}"
+            f"{''.join(part[0].upper() for part in name_parts[:-1])}"
+        )
+
+        # Find existing usernames with this prefix
+        username_pattern = f"^{prefix}(\d+)?$"
+        existing_count = cls.objects.filter(username__regex=username_pattern).count()
+
+        return f"{prefix}{existing_count + 1}"
+
 
 class Status(models.TextChoices):
     unofficial = "Unofficial", "Unofficial"

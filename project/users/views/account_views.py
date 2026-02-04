@@ -23,7 +23,6 @@ from ..serializers.account_serializers import (
     SetPasswordSerializer,
     SetSecurityQASerializer,
 )
-from ..utils import generate_username
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ class AccountViewSet(ViewSet):
             data = serializer.validated_data
             # Set initial password and username
             response_data = {
-                "username": generate_username(data["name"]),
+                "username": CustomUser.generate_username_from_name(data["name"]),
                 "password": get_random_string(length=12),
             }
             data["username"] = response_data["username"]
