@@ -26,7 +26,6 @@ from ..serializers.auth_serializers import (
 from common.constants import ErrorTypes, EventType, BYPASS_TOKEN_NOTFOUND
 from common.scope_token import ScopeTokenType
 from common.exceptions import Conflict
-from ..exceptions import SecurityQAValidationException, TokenNotFoundException
 from ..custom_token import ScopeToken
 from ..utils import (
     get_token_from_cookie,
@@ -197,9 +196,7 @@ class AuthViewSet(ViewSet):
             user_answers = serializer.validated_data["answers"]
             for expected, returned in zip(correct_answers, user_answers):
                 if expected != returned:
-                    raise SecurityQAValidationException(
-                        "Invalid security credentials provided"
-                    )
+                    raise AuthenticationFailed("Invalid security credentials provided")
             # Generate security qa verification token
             token_instance = ScopeToken.for_user(
                 user, ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE
@@ -240,26 +237,22 @@ class AuthViewSet(ViewSet):
                 }
             )
             raise e
-        except CustomUser.DoesNotExist:
+        except (CustomUser.DoesNotExist, AuthenticationFailed) as e:
+            if isinstance(e, CustomUser.DoesNotExist):
+                error_type = ErrorTypes.UNEXISTED
+                error_message = "User does not exist"
+            else:
+                error_type = ErrorTypes.SECURITY_QA_VALIDATION
+                error_message = str(e)
             logger.error(
                 {
                     "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
                     "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
-                    "error_type": ErrorTypes.UNEXISTED,
-                    "error_content": "User is not existed",
+                    "error_type": error_type,
+                    "error_content": error_message,
                 }
             )
-            raise AuthenticationFailed("Invalid security credentials provided")
-        except SecurityQAValidationException as e:
-            logger.error(
-                {
-                    "event_type": EventType.GENERATE_VERIFICATION_TOKEN,
-                    "scope": ScopeTokenType.SECURITY_QUESTION_VERIFY_SCOPE,
-                    "error_type": ErrorTypes.SECURITY_QA_VALIDATION,
-                    "error_content": str(e),
-                }
-            )
-            raise AuthenticationFailed(str(e))
+            raise AuthenticationFailed(error_message)
         except PermissionDenied as e:
             raise e
         except Exception as e:
@@ -405,7 +398,7 @@ class AuthViewSet(ViewSet):
                 }
             )
             raise e
-        except TokenNotFoundException as e:
+        except NotAuthenticated as e:
             logger.error(
                 {
                     "event_type": EventType.VERIFY_TOKEN,
@@ -413,7 +406,7 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            raise NotAuthenticated(str(e))
+            raise e
         except TokenError as e:
             logger.error(
                 {
@@ -482,7 +475,7 @@ class AuthViewSet(ViewSet):
                 }
             )
             return res
-        except TokenNotFoundException as e:
+        except NotAuthenticated as e:
             logger.error(
                 {
                     "event_type": EventType.REFRESH_TOKEN,
@@ -490,7 +483,7 @@ class AuthViewSet(ViewSet):
                     "error_content": str(e),
                 }
             )
-            raise NotAuthenticated(str(e))
+            raise e
         except TokenError as e:
             logger.error(
                 {
@@ -545,7 +538,7 @@ class AuthViewSet(ViewSet):
                 }
             )
             return res
-        except TokenNotFoundException as e:
+        except NotAuthenticated as e:
             logger.error(
                 {
                     "event_type": EventType.DELETE_SCOPE_TOKEN,
@@ -606,7 +599,7 @@ class AuthViewSet(ViewSet):
                 }
             )
             return res
-        except TokenNotFoundException as e:
+        except NotAuthenticated as e:
             logger.error(
                 {
                     "event_type": EventType.LOGOUT,

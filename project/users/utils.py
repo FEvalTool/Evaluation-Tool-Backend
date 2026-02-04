@@ -1,9 +1,9 @@
 import time
 from django.conf import settings
+from rest_framework.exceptions import NotAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken, UntypedToken
 from rest_framework_simplejwt.exceptions import TokenError
 
-from .exceptions import TokenNotFoundException
 from .models import CustomUser
 from .custom_token import ScopeToken
 from common.redis.tokens import RefreshTokenRedis, ScopeTokenRedis
@@ -57,7 +57,7 @@ def get_token_from_cookie(request, cookie_name, bypass_token_notfound_error):
     """
     token = request.COOKIES.get(cookie_name)
     if not token and not bypass_token_notfound_error:
-        raise TokenNotFoundException(f"Token not found in cookie: {cookie_name}")
+        raise NotAuthenticated(f"Token not found in cookie: {cookie_name}")
     return token
 
 
