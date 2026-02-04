@@ -5,13 +5,13 @@ from ..models import CustomUser, SecurityQuestion
 from .constants import VALID_SECURITY_QA_NUMS
 
 
-class CreateAccountSerializer(serializers.ModelSerializer):
+class CreateAccountRequest(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ["name", "phone_number", "dob", "identity_number"]
 
 
-class GetAccountInfoSerializer(serializers.ModelSerializer):
+class AccountInfoResponse(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = [
@@ -25,11 +25,11 @@ class GetAccountInfoSerializer(serializers.ModelSerializer):
         ]
 
 
-class SetPasswordSerializer(serializers.Serializer):
+class SetPasswordRequest(serializers.Serializer):
     password = serializers.CharField(validators=[UserValidators.password_validator])
 
 
-class SetSecurityQASerializer(serializers.Serializer):
+class SetSecurityQARequest(serializers.Serializer):
     questions = serializers.ListField(
         child=serializers.IntegerField(),
         min_length=VALID_SECURITY_QA_NUMS,

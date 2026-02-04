@@ -3,12 +3,12 @@ from rest_framework import serializers
 from .constants import VALID_SECURITY_QA_NUMS
 
 
-class UserLoginSerializer(serializers.Serializer):
+class PasswordVerificationRequest(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
 
-class GetSecurityQAVerificationTokenSerializer(serializers.Serializer):
+class SecurityQAVerificationRequest(serializers.Serializer):
     username = serializers.CharField()
     questions = serializers.ListField(
         child=serializers.IntegerField(),
@@ -30,5 +30,5 @@ class GetSecurityQAVerificationTokenSerializer(serializers.Serializer):
         return value
 
 
-class VerifyTokenSerializer(serializers.Serializer):
+class VerifyTokenRequest(serializers.Serializer):
     token_type = serializers.CharField()

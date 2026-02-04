@@ -18,10 +18,10 @@ from core.auth.tokens import ScopeTokenPurpose
 from core.auth.authentication import configure_auth
 from ..models import CustomUser, UserQuestionAnswer
 from ..serializers.account_serializers import (
-    CreateAccountSerializer,
-    GetAccountInfoSerializer,
-    SetPasswordSerializer,
-    SetSecurityQASerializer,
+    CreateAccountRequest,
+    AccountInfoResponse,
+    SetPasswordRequest,
+    SetSecurityQARequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ class AccountViewSet(ViewSet):
                     "message": "Begin initialize user account",
                 }
             )
-            serializer = CreateAccountSerializer(data=request.data)
+            serializer = CreateAccountRequest(data=request.data)
             serializer.is_valid(raise_exception=True)
             data = serializer.validated_data
             # Set initial password and username
@@ -112,7 +112,7 @@ class AccountViewSet(ViewSet):
                 }
             )
             user = request.user
-            serializer = GetAccountInfoSerializer(user)
+            serializer = AccountInfoResponse(user)
             logger.info(
                 {
                     "event_type": EventType.GET_USER_INFO,
@@ -215,7 +215,7 @@ class AccountViewSet(ViewSet):
                 }
             )
             # Validate new password
-            serializer = SetPasswordSerializer(data=request.data)
+            serializer = SetPasswordRequest(data=request.data)
             serializer.is_valid(raise_exception=True)
             logger.info(
                 {
@@ -282,7 +282,7 @@ class AccountViewSet(ViewSet):
                 }
             )
             # Validate security qa
-            serializer = SetSecurityQASerializer(data=request.data)
+            serializer = SetSecurityQARequest(data=request.data)
             serializer.is_valid(raise_exception=True)
             # Delete old security question answer of current user
             # and replace with the new one

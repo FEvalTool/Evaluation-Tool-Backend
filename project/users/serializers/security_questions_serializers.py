@@ -3,15 +3,15 @@ from rest_framework import serializers
 from ..models import SecurityQuestion, Status
 
 
-class CreateSecurityQuestionSerializer(serializers.Serializer):
+class CreateSecurityQuestionRequest(serializers.Serializer):
     content = serializers.CharField()
 
 
-class SecurityQuestionQuerySerializer(serializers.Serializer):
+class SecurityQuestionSearchParam(serializers.Serializer):
     status = serializers.ChoiceField(choices=Status.choices, required=False)
 
 
-class SecurityQuestionSerializer(serializers.ModelSerializer):
+class SecurityQuestionListResponse(serializers.ModelSerializer):
     class Meta:
         model = SecurityQuestion
         fields = "__all__"

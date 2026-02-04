@@ -19,9 +19,9 @@ from rest_framework_simplejwt.exceptions import TokenError
 
 from ..models import CustomUser, UserQuestionAnswer
 from ..serializers.auth_serializers import (
-    UserLoginSerializer,
-    GetSecurityQAVerificationTokenSerializer,
-    VerifyTokenSerializer,
+    PasswordVerificationRequest,
+    SecurityQAVerificationRequest,
+    VerifyTokenRequest,
 )
 from core.constants import ErrorTypes, EventType
 from core.auth.tokens import ScopeToken, ScopeTokenPurpose
@@ -54,7 +54,7 @@ class AuthViewSet(ViewSet):
                     "message": "Login user account",
                 }
             )
-            serializer = UserLoginSerializer(data=request.data)
+            serializer = PasswordVerificationRequest(data=request.data)
             serializer.is_valid(raise_exception=True)
             user = CustomUser.objects.get(
                 username=serializer.validated_data["username"]
@@ -157,7 +157,7 @@ class AuthViewSet(ViewSet):
                     "message": "Begin generate security qa verification token",
                 }
             )
-            serializer = GetSecurityQAVerificationTokenSerializer(data=request.data)
+            serializer = SecurityQAVerificationRequest(data=request.data)
             serializer.is_valid(raise_exception=True)
             username = serializer.validated_data["username"]
             user = CustomUser.objects.get(username=username)
@@ -274,7 +274,7 @@ class AuthViewSet(ViewSet):
                     "message": "Begin generate password verification token",
                 }
             )
-            serializer = UserLoginSerializer(data=request.data)
+            serializer = PasswordVerificationRequest(data=request.data)
             serializer.is_valid(raise_exception=True)
             username = serializer.validated_data["username"]
             user = CustomUser.objects.get(username=username)
@@ -371,7 +371,7 @@ class AuthViewSet(ViewSet):
                     "message": "Begin verify token - validate request process",
                 }
             )
-            serializer = VerifyTokenSerializer(data=request.data)
+            serializer = VerifyTokenRequest(data=request.data)
             serializer.is_valid(raise_exception=True)
             logger.info(
                 {
