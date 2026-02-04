@@ -5,7 +5,7 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken, UntypedToken
 from rest_framework_simplejwt.exceptions import TokenError
 
-from .redis import RedisBase, RefreshTokenRedis, ScopeTokenRedis
+from .redis import BaseRedis, RefreshTokenRedis, ScopeTokenRedis
 from .scope_token import ScopeToken
 from .constants import EventType, ErrorTypes
 
@@ -35,7 +35,7 @@ class CustomTokenAuthentication(BaseAuthentication):
         },
         ACCESS_TOKEN: {
             "token_class": AccessToken,
-            "redis_class": RedisBase,
+            "redis_class": BaseRedis,
         },
     }
 
@@ -103,7 +103,7 @@ class CustomTokenAuthentication(BaseAuthentication):
         AccessToken | RefreshToken | ScopeToken | UntypedToken
             The validate token instance
         """
-        redis_class = RedisBase
+        redis_class = BaseRedis
         token_class = UntypedToken
         if token_type in self.token_properties:
             redis_class = self.token_properties[token_type]["redis_class"]

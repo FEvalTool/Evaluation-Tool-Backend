@@ -7,7 +7,7 @@ from .exceptions import TokenNotFoundException
 from .models import CustomUser
 from .custom_token import ScopeToken
 from common.redis.tokens import RefreshTokenRedis, ScopeTokenRedis
-from common.redis.base import RedisBase
+from common.redis.base import BaseRedis
 
 
 def generate_username(name):
@@ -116,7 +116,7 @@ def check_token_validity(token, token_type):
     -------
     None
     """
-    redis_class = RedisBase
+    redis_class = BaseRedis
     token_class = UntypedToken
     if token_type in token_properties:
         redis_class = token_properties[token_type]["redis_class"]

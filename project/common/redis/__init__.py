@@ -1,2 +1,2 @@
-from .base import RedisBase
+from .base import BaseRedis
 from .tokens import RefreshTokenRedis, ScopeTokenRedis

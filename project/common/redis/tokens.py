@@ -1,9 +1,9 @@
-from .base import RedisBase
+from .base import BaseRedis
 
 
-class RefreshTokenRedis(RedisBase):
+class RefreshTokenRedis(BaseRedis):
     PREFIX = "refresh"
 
 
-class ScopeTokenRedis(RedisBase):
+class ScopeTokenRedis(BaseRedis):
     PREFIX = "scope"
