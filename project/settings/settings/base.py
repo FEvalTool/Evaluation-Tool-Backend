@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "drf_standardized_errors",
-    "common",
+    "core",
     "users",
 ]
 

@@ -23,15 +23,15 @@ from ..serializers.auth_serializers import (
     GetSecurityQAVerificationTokenSerializer,
     VerifyTokenSerializer,
 )
-from common.constants import ErrorTypes, EventType
-from common.auth.tokens import ScopeToken, ScopeTokenPurpose
-from common.auth.utils import (
+from core.constants import ErrorTypes, EventType
+from core.auth.tokens import ScopeToken, ScopeTokenPurpose
+from core.auth.utils import (
     get_token_from_cookies,
     store_blacklist_token,
     check_token_validity,
     set_auth_cookies,
 )
-from common.exceptions import Conflict
+from core.exceptions import Conflict
 
 logger = logging.getLogger(__name__)
 

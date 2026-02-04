@@ -5,7 +5,7 @@ from rest_framework.test import APIClient
 
 from tests.helpers.setup_mock_accounts import create_security_questions
 from tests.helpers.utils import get_error_key_response, CustomAPITestCase
-from common.constants import ErrorTypes, EventType
+from core.constants import ErrorTypes, EventType
 
 
 class SecurityQuestionsViewsTestCase(CustomAPITestCase):

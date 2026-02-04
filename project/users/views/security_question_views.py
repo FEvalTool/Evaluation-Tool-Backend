@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.viewsets import ViewSet
 from rest_framework.exceptions import ValidationError, APIException
 
-from common.constants import ErrorTypes, EventType
+from core.constants import ErrorTypes, EventType
 from ..models import SecurityQuestion
 from ..serializers.security_questions_serializers import (
     CreateSecurityQuestionSerializer,

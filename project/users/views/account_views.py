@@ -13,9 +13,9 @@ from rest_framework.exceptions import (
     PermissionDenied,
 )
 
-from common.constants import ErrorTypes, EventType
-from common.auth.tokens import ScopeTokenPurpose
-from common.auth.authentication import configure_auth
+from core.constants import ErrorTypes, EventType
+from core.auth.tokens import ScopeTokenPurpose
+from core.auth.authentication import configure_auth
 from ..models import CustomUser, UserQuestionAnswer
 from ..serializers.account_serializers import (
     CreateAccountSerializer,

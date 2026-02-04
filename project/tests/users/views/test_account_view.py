@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from users.models import CustomUser, SecurityQuestion, UserQuestionAnswer
-from common.constants import ErrorTypes, TokenScope, EventType
+from core.constants import ErrorTypes, TokenScope, EventType
 from tests.helpers.setup_mock_accounts import (
     setup_mock_accounts,
     ACTIVE_USER_USERNAME,
