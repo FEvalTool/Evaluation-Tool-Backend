@@ -147,7 +147,7 @@ REST_FRAMEWORK = {
     ],
 }
 DRF_STANDARDIZED_ERRORS = {
-    "EXCEPTION_FORMATTER_CLASS": "common.exceptions.CustomExceptionFormatter"
+    "EXCEPTION_FORMATTER_CLASS": "core.exceptions.CustomExceptionFormatter"
 }
 
 # Set up Logging
@@ -203,16 +203,16 @@ COOKIE_SETTINGS = {
     "AUTH_COOKIE_REFRESH": "refresh",
     "AUTH_COOKIE_SCOPE": "scope",
     # Custom attributes: A string like "example.com", or None for standard domain cookie.
-    "AUTH_COOKIE_DOMAIN": None,
+    "AUTH_COOKIE_DOMAIN": ".eduscrum.local",
     # Custom attributes: Whether the auth cookies should be secure (https:// only).
-    "AUTH_COOKIE_SECURE": True,
+    "AUTH_COOKIE_SECURE": False,
     # Custom attributes: Http only cookie flag.It's not fetch by javascript.
     "AUTH_COOKIE_HTTP_ONLY": True,
     # Custom attributes: The path of the auth cookie.
     "AUTH_COOKIE_PATH": "/",
     # Custom attributes: Whether to set the flag restricting cookie leaks on cross-site requests.
     # This can be 'Lax', 'Strict', or None to disable the flag.
-    "AUTH_COOKIE_SAMESITE": None,
+    "AUTH_COOKIE_SAMESITE": "Lax",
 }
 
 REDIS_HOST = os.environ.get("REDIS_HOST")

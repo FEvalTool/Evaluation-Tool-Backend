@@ -216,9 +216,43 @@ def set_auth_cookies(response, cookies):
             key=cookie["key"],
             value=cookie["value"],
             max_age=cookie["max_age"],
+            domain=settings.COOKIE_SETTINGS["AUTH_COOKIE_DOMAIN"],
             secure=settings.COOKIE_SETTINGS["AUTH_COOKIE_SECURE"],
             httponly=settings.COOKIE_SETTINGS["AUTH_COOKIE_HTTP_ONLY"],
             samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
             path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
         )
+    return response
+
+
+def delete_auth_cookie(response, key):
+    """
+    Delete authentication cookie from a response.
+
+    Applies the same domain, path, and security settings used when setting cookies
+    to ensure proper deletion. Cookies must be deleted with matching attributes.
+
+    Parameters
+    ----------
+    response : rest_framework.response.Response
+        The DRF response object to delete cookies from.
+    key : str
+        cookie name to delete.
+
+    Returns
+    -------
+    rest_framework.response.Response
+        The response object with cookies marked for deletion.
+
+    Examples
+    --------
+    >>> response = Response({'message': 'Logout successful'})
+    >>> delete_auth_cookies(response, 'access')
+    """
+    response.delete_cookie(
+        key=key,
+        domain=settings.COOKIE_SETTINGS["AUTH_COOKIE_DOMAIN"],
+        path=settings.COOKIE_SETTINGS["AUTH_COOKIE_PATH"],
+        samesite=settings.COOKIE_SETTINGS["AUTH_COOKIE_SAMESITE"],
+    )
     return response

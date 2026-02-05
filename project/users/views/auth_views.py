@@ -30,6 +30,7 @@ from core.auth.utils import (
     store_blacklist_token,
     check_token_validity,
     set_auth_cookies,
+    delete_auth_cookie,
 )
 from core.exceptions import Conflict
 
@@ -74,9 +75,9 @@ class AuthViewSet(ViewSet):
                 exp = scope_token.payload.get("exp")
                 cookie_item_list.append(
                     {
-                        "cookie_key": settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
-                        "cookie_value": str(scope_token),
-                        "cookie_max_age": settings.SCOPE_TOKEN_LIFETIME.total_seconds(),
+                        "key": settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                        "value": str(scope_token),
+                        "max_age": settings.SCOPE_TOKEN_LIFETIME.total_seconds(),
                     }
                 )
                 user_data = data["user"]
@@ -447,9 +448,11 @@ class AuthViewSet(ViewSet):
                     "message": "Begin refresh access token - retrieve token process",
                 }
             )
-            token = get_token_from_cookies(
+            token, _ = get_token_from_cookies(
                 request, [settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]]
             )
+            if token is None:
+                raise NotAuthenticated("Token not found")
             # Check if refresh token is valid and not in blacklisted
             logger.info(
                 {
@@ -550,7 +553,7 @@ class AuthViewSet(ViewSet):
                     }
                 )
                 # Delete scope token from cookies
-                res.delete_cookie(key=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"])
+                delete_auth_cookie(res, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"])
                 # Store deleted scope token in blacklist
                 store_blacklist_token(
                     token, settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]
@@ -613,7 +616,7 @@ class AuthViewSet(ViewSet):
                         "message": "Logout - delete access token from cookie process",
                     }
                 )
-                res.delete_cookie(key=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"])
+                delete_auth_cookie(res, settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"])
             if refresh_token is not None:
                 logger.info(
                     {
@@ -621,7 +624,7 @@ class AuthViewSet(ViewSet):
                         "message": "Begin logout - delete refresh token from cookie and blacklist token process",
                     }
                 )
-                res.delete_cookie(key=settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"])
+                delete_auth_cookie(res, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"])
                 # Store deleted refresh token in blacklist
                 store_blacklist_token(
                     refresh_token, settings.COOKIE_SETTINGS["AUTH_COOKIE_REFRESH"]
