@@ -1,6 +1,5 @@
 import time
 from django.conf import settings
-from rest_framework.exceptions import NotAuthenticated
 from rest_framework_simplejwt.exceptions import TokenError
 from ..redis import BaseRedis, RefreshTokenRedis, ScopeTokenRedis
 from .tokens import ScopeToken, AccessToken, RefreshToken, UntypedToken
@@ -44,30 +43,6 @@ def get_token_from_cookies(request, cookie_priority):
         if token:
             return token, token_type
     return None, None
-
-
-def get_token_from_cookie(request, cookie_name, raise_if_missing=True):
-    """
-    Extract token from a specific cookie.
-
-    Parameters
-    ----------
-    request: HttpRequest
-        The HTTP request object.
-    cookie_name: str
-        The name of the cookie.
-    raise_if_missing: bool
-        If True, raise NotAuthenticated if token not found.
-
-    Returns
-    -------
-    str | None
-        The token if found, otherwise None (or raises exception).
-    """
-    token = request.COOKIES.get(cookie_name)
-    if not token and raise_if_missing:
-        raise NotAuthenticated(f"Token not found in cookie: {cookie_name}")
-    return token
 
 
 def get_token_from_header(request):

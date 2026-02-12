@@ -64,7 +64,7 @@ class CustomTokenAuthentication(BaseAuthentication):
         # No token found
         if token is None:
             if self.optional:
-                return None
+                return None, None
             logger.error(
                 {
                     "event_type": EventType.AUTHENTICATION_ATTEMP,
@@ -97,7 +97,6 @@ class CustomTokenAuthentication(BaseAuthentication):
                 }
             )
             return user, token
-
         except TokenError as e:
             logger.error(
                 {

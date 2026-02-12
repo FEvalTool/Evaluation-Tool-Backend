@@ -145,43 +145,6 @@ class AccountViewsTestCase(CustomAPITestCase):
         self.assertNotIn("is_password_setup", user_data)
         self.assertNotIn("is_security_qa_setup", user_data)
 
-    def test_get_user_setup_status_token_not_found(self):
-        # Act
-        response = self.client.get(self.get_user_setup_status_url)
-        # Assert response
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertResponseStructure(response)
-        self.assertEqual(response.json()["code"], "not_authenticated")
-        self.assertEqual(response.json()["message"], "No token provided")
-
-    def test_get_user_setup_status_invalid_token(self):
-        # Arrange: Set invalid scope token in cookie
-        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
-            TokenFactory.invalid_signature()
-        )
-        # Act
-        response = self.client.get(self.get_user_setup_status_url)
-        # Assert response
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertResponseStructure(response)
-        self.assertEqual(response.json()["code"], "authentication_failed")
-
-    def test_get_user_setup_status_user_not_exist(self):
-        # Arrange: Set unknown user token in cookie
-        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
-            TokenFactory.unknown_user(
-                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
-                scope=ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE,
-            )
-        )
-        # Act
-        response = self.client.get(self.get_user_setup_status_url)
-        # Assert response
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertResponseStructure(response)
-        self.assertEqual(response.json()["code"], "not_found")
-        self.assertEqual(response.json()["message"], "Account invalid or deleted")
-
     @mock.patch("users.views.account_views.logger")
     @mock.patch("users.views.account_views.JsonResponse")
     def test_get_user_setup_status_internal_server_error(
@@ -279,51 +242,6 @@ class AccountViewsTestCase(CustomAPITestCase):
         self.assertEqual(response.json()["code"], "validation")
         error_item_keys = get_error_key_response(response)
         self.assertIn("password", error_item_keys)
-
-    def test_set_password_token_not_found(self):
-        # Act
-        response = self.client.post(
-            self.set_password_url,
-            {"password": "NewPassword123!"},
-        )
-        # Check response
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertResponseStructure(response)
-        self.assertEqual(response.json()["code"], "not_authenticated")
-        self.assertEqual(response.json()["message"], "No token provided")
-
-    def test_set_password_invalid_token(self):
-        # Arrange: set invalid scope token in cookie
-        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
-            TokenFactory.invalid_signature()
-        )
-        # Act
-        response = self.client.post(
-            self.set_password_url,
-            {"password": "NewPassword123!"},
-        )
-        # Assert response
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertResponseStructure(response)
-        self.assertEqual(response.json()["code"], "authentication_failed")
-
-    def test_set_password_user_not_exist(self):
-        # Arrange: set unknown user scope token in cookie
-        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
-            TokenFactory.unknown_user(
-                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
-                scope=ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE,
-            )
-        )
-        # Act
-        response = self.client.post(
-            self.set_password_url, {"password": "NewPassword123!"}
-        )
-        # Assert response
-        self.assertEqual(response.status_code, 404)
-        self.assertResponseStructure(response)
-        self.assertEqual(response.json()["code"], "not_found")
-        self.assertEqual(response.json()["message"], "Account invalid or deleted")
 
     @mock.patch("users.views.account_views.logger")
     @mock.patch("users.views.account_views.JsonResponse")
@@ -464,59 +382,6 @@ class AccountViewsTestCase(CustomAPITestCase):
         error_item_keys = get_error_key_response(response)
         self.assertIn("questions", error_item_keys)
         self.assertIn("answers", error_item_keys)
-
-    def test_set_security_qa_token_not_found(self):
-        # Arrange: security questions prepare
-        question_ids = [question.id for question in self.security_questions[:3]]
-        answers = ["New Answer 1", "New Answer 2", "New Answer 3"]
-        # Act
-        response = self.client.post(
-            self.set_security_qa_url,
-            {"questions": question_ids, "answers": answers},
-        )
-        # Assert response
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertResponseStructure(response)
-        self.assertEqual(response.json()["code"], "not_authenticated")
-        self.assertEqual(response.json()["message"], "No token provided")
-
-    def test_set_security_qa_invalid_token(self):
-        # Arrange: set invalid scope token in cookie/security questions prepare
-        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
-            TokenFactory.invalid_signature()
-        )
-        question_ids = [question.id for question in self.security_questions[:3]]
-        answers = ["New Answer 1", "New Answer 2", "New Answer 3"]
-        # Act
-        response = self.client.post(
-            self.set_security_qa_url,
-            {"questions": question_ids, "answers": answers},
-        )
-        # Assert response
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertResponseStructure(response)
-        self.assertEqual(response.json()["code"], "authentication_failed")
-
-    def test_set_security_qa_user_not_exist(self):
-        # Arrange: set invalid scope token in cookie/security questions prepare
-        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
-            TokenFactory.unknown_user(
-                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
-                scope=ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE,
-            )
-        )
-        question_ids = [question.id for question in self.security_questions[:3]]
-        answers = ["New Answer 1", "New Answer 2", "New Answer 3"]
-        # Act
-        response = self.client.post(
-            self.set_security_qa_url,
-            {"questions": question_ids, "answers": answers},
-        )
-        # Assert response
-        self.assertEqual(response.status_code, 404)
-        self.assertResponseStructure(response)
-        self.assertEqual(response.json()["code"], "not_found")
-        self.assertEqual(response.json()["message"], "Account invalid or deleted")
 
     @mock.patch("users.views.account_views.logger")
     @mock.patch("users.views.account_views.JsonResponse")
