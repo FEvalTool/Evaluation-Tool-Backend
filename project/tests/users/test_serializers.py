@@ -1,10 +1,8 @@
 from django.test import TestCase
 
 from users.models import SecurityQuestion
-from users.serializers import (
-    SetSecurityQASerializer,
-    GetSecurityQAVerificationTokenSerializer,
-)
+from users.serializers.account_serializers import SetSecurityQARequest
+from users.serializers.auth_serializers import SecurityQAVerificationRequest
 from tests.helpers.setup_mock_accounts import create_security_questions
 
 
@@ -25,7 +23,7 @@ class SetSecurityQASerializerTest(TestCase):
             "answers": ["a", "b", "c"],
         }
 
-        serializer = SetSecurityQASerializer(data=data)
+        serializer = SetSecurityQARequest(data=data)
         self.assertTrue(serializer.is_valid(), serializer.errors)
 
         validated_questions = serializer.validated_data["questions"]
@@ -42,7 +40,7 @@ class SetSecurityQASerializerTest(TestCase):
             "answers": ["a", "b", "c"],
         }
 
-        serializer = SetSecurityQASerializer(data=data)
+        serializer = SetSecurityQARequest(data=data)
         self.assertFalse(serializer.is_valid())
         self.assertIn("questions", serializer.errors)
         self.assertIn(
@@ -58,7 +56,7 @@ class SetSecurityQASerializerTest(TestCase):
             "answers": ["a", "b", "c"],
         }
 
-        serializer = SetSecurityQASerializer(data=data)
+        serializer = SetSecurityQARequest(data=data)
         self.assertFalse(serializer.is_valid())
         self.assertIn("questions", serializer.errors)
         self.assertEqual(serializer.errors["questions"][0], "Non-exist questions")
@@ -71,7 +69,7 @@ class SetSecurityQASerializerTest(TestCase):
             "answers": ["a", "b", "c"],
         }
 
-        serializer = SetSecurityQASerializer(data=data)
+        serializer = SetSecurityQARequest(data=data)
         self.assertFalse(serializer.is_valid())
         self.assertIn("questions", serializer.errors)
         self.assertEqual(serializer.errors["questions"][0], "Non-exist questions")
@@ -85,7 +83,7 @@ class GetSecurityQAVerificationTokenSerializerTest(TestCase):
             "answers": ["a", "b", "c"],
         }
 
-        serializer = GetSecurityQAVerificationTokenSerializer(data=data)
+        serializer = SecurityQAVerificationRequest(data=data)
         self.assertTrue(serializer.is_valid(), serializer.errors)
 
     def test_validate_questions_number_of_questions_not_equal_to_number_of_answer(self):
@@ -95,7 +93,7 @@ class GetSecurityQAVerificationTokenSerializerTest(TestCase):
             "answers": ["a", "b", "c"],
         }
 
-        serializer = GetSecurityQAVerificationTokenSerializer(data=data)
+        serializer = SecurityQAVerificationRequest(data=data)
         self.assertFalse(serializer.is_valid())
         self.assertIn("questions", serializer.errors)
         self.assertIn(

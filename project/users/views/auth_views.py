@@ -236,7 +236,7 @@ class AuthViewSet(ViewSet):
         except (CustomUser.DoesNotExist, AuthenticationFailed) as e:
             if isinstance(e, CustomUser.DoesNotExist):
                 error_type = ErrorTypes.UNEXISTED
-                error_message = "User does not exist"
+                error_message = "Invalid security credentials provided"
             else:
                 error_type = ErrorTypes.SECURITY_QA_VALIDATION
                 error_message = str(e)

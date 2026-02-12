@@ -35,6 +35,14 @@ class CustomTokenAuthentication(BaseAuthentication):
     valid_scopes = []
     optional = False
 
+    def authenticate_header(self, request):
+        """
+        Return a string to be used as the value of the `WWW-Authenticate`
+        header in a `401 Unauthenticated` response.
+        DRF uses the presence of this to decide between 401 and 403.
+        """
+        return "Bearer"
+
     def authenticate(self, request):
         token, token_type = None, None
 
