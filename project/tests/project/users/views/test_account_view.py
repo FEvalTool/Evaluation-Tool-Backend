@@ -26,6 +26,7 @@ class AccountViewsTestCase(CustomAPITestCase):
         self.account_url = reverse("account-list")
         self.set_password_url = reverse("account-set-password")
         self.set_security_qa_url = reverse("account-set-security-question-answer")
+        self.get_user_info_url = reverse("account-get-user-info")
         self.get_user_setup_status_url = reverse("account-get-user-setup-status")
         # Set up user info for account creation tests
         self.user_info = {
@@ -89,6 +90,55 @@ class AccountViewsTestCase(CustomAPITestCase):
         mock_logger.error.assert_called_once()
         logged_data = mock_logger.error.call_args[0][0]
         self.assertEqual(logged_data["event_type"], EventType.CREATE_USER_ACCOUNT)
+        self.assertEqual(logged_data["error_type"], ErrorTypes.EXCEPTION)
+        self.assertEqual(logged_data["error_content"], exception_message)
+        # Assert response
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
+        self.assertEqual(response.json()["code"], "error")
+
+    def test_get_user_info_success(self):
+        # Arrange: Get user instance and set access token to cookie
+        user_instance = CustomUser.objects.get(username=ACTIVE_USER_USERNAME)
+        self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]] = (
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"],
+                username=ACTIVE_USER_USERNAME,
+            )
+        )
+        # Act
+        response = self.client.get(self.get_user_info_url)
+        # Assert response status + structure
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response, has_data=True)
+        # Assert response body
+        self.assertEqual(response.json()["message"], "Successfully retrieve user info")
+        user_data = response.json()["data"]
+        self.assertEqual(user_data["username"], user_instance.username)
+
+    @mock.patch("users.views.account_views.logger")
+    @mock.patch("users.views.account_views.JsonResponse")
+    def test_get_user_info_internal_server_error(self, mock_json_response, mock_logger):
+        # Arrange: Mock fail function and set cookie
+        client = APIClient(raise_request_exception=False)
+        client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
+            TokenFactory.valid_token(
+                token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
+                scope=ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE,
+                username=NEW_USER_USERNAME,
+            )
+        )
+
+        exception_message = (
+            "Get user info: Unexpected error when creating json response"
+        )
+        mock_json_response.side_effect = Exception(exception_message)
+        # Act
+        response = client.get(self.get_user_info_url)
+        # Assert log content to log correct exception
+        mock_logger.error.assert_called_once()
+        logged_data = mock_logger.error.call_args[0][0]
+        self.assertEqual(logged_data["event_type"], EventType.GET_USER_INFO)
         self.assertEqual(logged_data["error_type"], ErrorTypes.EXCEPTION)
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response

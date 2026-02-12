@@ -4,6 +4,7 @@ from .base import *
 
 # When testing, we do not care about frontend related setting (CORS)
 
+
 # Generate public/private key and set RS256 algorithm to simplejwt
 def generate_test_keys():
     private_key = rsa.generate_private_key(
