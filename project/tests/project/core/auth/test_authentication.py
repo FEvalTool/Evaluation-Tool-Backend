@@ -63,8 +63,9 @@ class TestCustomTokenAuthentication(TestCase):
         request.COOKIES = {}
         self.auth.cookie_priority = ["access"]
 
-        with self.assertRaises(NotAuthenticated):
+        with self.assertRaises(NotAuthenticated) as context:
             self.auth.authenticate(request)
+        self.assertEqual(str(context.exception), "No token provided")
 
     def test_optional_with_no_token_returns_none(self):
         request = self.factory.get("/")
@@ -90,8 +91,9 @@ class TestCustomTokenAuthentication(TestCase):
         token = TokenFactory.unknown_user(token_type=ACCESS_TOKEN)
         request = self.factory.get("/", headers={"Authorization": f"Bearer {token}"})
 
-        with self.assertRaises(NotFound):
+        with self.assertRaises(NotFound) as context:
             self.auth.authenticate(request)
+        self.assertEqual(str(context.exception), "Account invalid or deleted")
 
 
 class TestConfigureAuth(TestCase):
