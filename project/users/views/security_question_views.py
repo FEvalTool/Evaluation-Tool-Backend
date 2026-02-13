@@ -5,13 +5,12 @@ from rest_framework import status
 from rest_framework.viewsets import ViewSet
 from rest_framework.exceptions import ValidationError, APIException
 
-from common.constants import ErrorTypes
-from ..constants import EventType
+from core.constants import ErrorTypes, EventType
 from ..models import SecurityQuestion
-from ..serializers import (
-    CreateSecurityQuestionSerializer,
-    SecurityQuestionQuerySerializer,
-    SecurityQuestionSerializer,
+from ..serializers.security_questions_serializers import (
+    CreateSecurityQuestionRequest,
+    SecurityQuestionSearchParam,
+    SecurityQuestionListResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,7 +33,7 @@ class SecurityQuestionViewSet(ViewSet):
     #                 "message": "Begin create security questions",
     #             }
     #         )
-    #         serializer = CreateSecurityQuestionSerializer(data=request.data, many=True)
+    #         serializer = CreateSecurityQuestionRequest(data=request.data, many=True)
     #         serializer.is_valid(raise_exception=True)
     #         data = serializer.validated_data
     #         security_question_instances = [
@@ -90,7 +89,7 @@ class SecurityQuestionViewSet(ViewSet):
                     "message": "Begin retrieve security questions",
                 }
             )
-            serializer = SecurityQuestionQuerySerializer(data=request.query_params)
+            serializer = SecurityQuestionSearchParam(data=request.query_params)
             serializer.is_valid(raise_exception=True)
             data = serializer.validated_data
             queryset = SecurityQuestion.objects.all()
@@ -102,7 +101,7 @@ class SecurityQuestionViewSet(ViewSet):
                     "message": "Retrieve security questions success",
                 }
             )
-            serializer = SecurityQuestionSerializer(queryset, many=True)
+            serializer = SecurityQuestionListResponse(queryset, many=True)
             return JsonResponse(
                 {
                     "message": "Successfully retrieve security questions",

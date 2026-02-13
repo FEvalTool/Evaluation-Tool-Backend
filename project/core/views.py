@@ -10,8 +10,4 @@ class HealthViewSet(ViewSet):
 
     @action(detail=False, methods=["get"], url_path="check")
     def check(self, request):
-        return Response(
-            {
-                "message": "Hello, this is Evaluation Tool Project. This project is a refactor version of the C99 Training Python project for intern and OJT in FPT Software."
-            }
-        )
+        return Response({"message": "User management service still healthy"})

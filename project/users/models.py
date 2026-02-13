@@ -2,10 +2,15 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.utils import timezone
 from .validators import UserValidators
-from common.models import Status
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
+    GLOBAL_ROLES = [
+        ("user", "Regular User"),
+        ("staff", "Staff Member"),
+        ("superadmin", "Super Administrator"),
+    ]
+
     username = models.CharField(
         max_length=150,
         unique=True,
@@ -36,11 +41,56 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_security_question_set = models.BooleanField(
         default=False, help_text="Is this user set the security question answer"
     )
-
+    global_role = models.CharField(
+        max_length=20,
+        choices=GLOBAL_ROLES,
+        default="user",
+        help_text="Global role for user",
+    )
     USERNAME_FIELD = "username"
 
     def __str__(self):
         return self.username
+
+    @classmethod
+    def generate_username_from_name(cls, name):
+        """
+        Generate a unique username from a full name.
+
+        Format: LastnameFirstInitials + incrementing number
+        Example: "Tran Anh Vu" -> "VuTA1", "VuTA2", etc.
+
+        Parameters
+        ----------
+        name : str
+            Full name to generate username from
+
+        Returns
+        -------
+        str
+            Generated unique username
+        """
+        # Normalize whitespace
+        normalized_name = " ".join(name.split())
+        name_parts = normalized_name.split(" ")
+
+        # Create prefix: LastnameFirstInitials
+        prefix = (
+            f"{name_parts[-1].capitalize()}"
+            f"{''.join(part[0].upper() for part in name_parts[:-1])}"
+        )
+
+        # Find existing usernames with this prefix
+        username_pattern = f"^{prefix}(\d+)?$"
+        existing_count = cls.objects.filter(username__regex=username_pattern).count()
+
+        return f"{prefix}{existing_count + 1}"
+
+
+class Status(models.TextChoices):
+    unofficial = "Unofficial", "Unofficial"
+    official = "Official", "Official"
+    outdated = "Outdated", "Outdated"
 
 
 class SecurityQuestion(models.Model):

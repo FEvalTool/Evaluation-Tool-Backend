@@ -6,9 +6,9 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from users.models import UserQuestionAnswer, CustomUser
-from users.constants import TokenScope, BYPASS_TOKEN_NOTFOUND, EventType
-from common.constants import ErrorTypes
-from users.redis.tokens import RefreshTokenRedis, ScopeTokenRedis
+from core.constants import ErrorTypes, EventType
+from core.auth.tokens import ScopeTokenPurpose
+from core.redis.tokens import RefreshTokenRedis, ScopeTokenRedis
 from tests.helpers.setup_mock_accounts import (
     setup_mock_accounts,
     ACTIVE_USER_USERNAME,
@@ -342,7 +342,7 @@ class AuthViewsTestCase(CustomAPITestCase):
             logged_data["event_type"], EventType.GENERATE_VERIFICATION_TOKEN
         )
         self.assertEqual(
-            logged_data["scope"], TokenScope.SECURITY_QUESTION_VERIFY_SCOPE
+            logged_data["scope"], ScopeTokenPurpose.SECURITY_QUESTION_VERIFY_SCOPE
         )
         self.assertEqual(logged_data["error_type"], ErrorTypes.EXCEPTION)
         self.assertEqual(logged_data["error_content"], exception_message)
@@ -465,7 +465,7 @@ class AuthViewsTestCase(CustomAPITestCase):
         self.assertEqual(
             logged_data["event_type"], EventType.GENERATE_VERIFICATION_TOKEN
         )
-        self.assertEqual(logged_data["scope"], TokenScope.PASSWORD_VERIFY_SCOPE)
+        self.assertEqual(logged_data["scope"], ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE)
         self.assertEqual(logged_data["error_type"], ErrorTypes.EXCEPTION)
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
@@ -478,7 +478,7 @@ class AuthViewsTestCase(CustomAPITestCase):
         self.client.cookies[settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"]] = (
             TokenFactory.valid_token(
                 token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
-                scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+                scope=ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE,
                 username=ACTIVE_USER_USERNAME,
             )
         )
@@ -512,7 +512,7 @@ class AuthViewsTestCase(CustomAPITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "not_authenticated")
-        self.assertTrue("Token not found in cookie" in response.json()["message"])
+        self.assertEqual(response.json()["message"], "Token not found")
 
     def test_verify_token_token_invalid(self):
         # Arrange invalid scope token store in cookie
@@ -529,7 +529,7 @@ class AuthViewsTestCase(CustomAPITestCase):
         self.assertEqual(response.json()["code"], "authentication_failed")
 
     @mock.patch("users.views.auth_views.logger")
-    @mock.patch("users.views.auth_views.get_token_from_cookie")
+    @mock.patch("users.views.auth_views.get_token_from_cookies")
     def test_verify_token_exception(self, mock_get_token, mock_logger):
         # Arrange: Mock fail function
         client = APIClient(raise_request_exception=False)
@@ -589,7 +589,7 @@ class AuthViewsTestCase(CustomAPITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertResponseStructure(response)
         self.assertEqual(response.json()["code"], "not_authenticated")
-        self.assertTrue("Token not found in cookie" in response.json()["message"])
+        self.assertEqual(response.json()["message"], "Token not found")
 
     def test_refresh_token_token_invalid(self):
         # Arrange invalid refresh token
@@ -604,7 +604,7 @@ class AuthViewsTestCase(CustomAPITestCase):
         self.assertEqual(response.json()["code"], "authentication_failed")
 
     @mock.patch("users.views.auth_views.logger")
-    @mock.patch("users.views.auth_views.get_token_from_cookie")
+    @mock.patch("users.views.auth_views.get_token_from_cookies")
     def test_refresh_token_exception(self, mock_get_token, mock_logger):
         # Arrange: Mock fail function
         client = APIClient(raise_request_exception=False)
@@ -627,7 +627,7 @@ class AuthViewsTestCase(CustomAPITestCase):
         # Arrange scope token store in cookie
         scope_token = TokenFactory.valid_token(
             token_type=settings.COOKIE_SETTINGS["AUTH_COOKIE_SCOPE"],
-            scope=TokenScope.PASSWORD_VERIFY_SCOPE,
+            scope=ScopeTokenPurpose.PASSWORD_VERIFY_SCOPE,
             username=ACTIVE_USER_USERNAME,
         )
         jti = get_jti_from_jwt(scope_token)  # Get before-deleted scope token jti
@@ -649,19 +649,8 @@ class AuthViewsTestCase(CustomAPITestCase):
         # Assert if old scope token store in blacklist
         self.assertTrue(ScopeTokenRedis.exists(jti))
 
-    def test_delete_scope_token_token_not_found(self):
-        # Act
-        response = self.client.post(
-            self.delete_scope_token_url, {BYPASS_TOKEN_NOTFOUND: False}, format="json"
-        )
-        # Assert response
-        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
-        self.assertResponseStructure(response)
-        self.assertEqual(response.json()["code"], "conflict")
-        self.assertTrue("Token not found in cookie" in response.json()["message"])
-
     @mock.patch("users.views.auth_views.logger")
-    @mock.patch("users.views.auth_views.get_token_from_cookie")
+    @mock.patch("users.views.auth_views.get_token_from_cookies")
     def test_delete_scope_token_exception(self, mock_get_token, mock_logger):
         # Arrange: Mock fail function
         client = APIClient(raise_request_exception=False)
@@ -719,19 +708,8 @@ class AuthViewsTestCase(CustomAPITestCase):
         # Assert if old refresh token is store in blacklist
         self.assertTrue(RefreshTokenRedis.exists(jti))
 
-    def test_logout_token_not_found(self):
-        # Act
-        response = self.client.post(
-            self.logout_url, {BYPASS_TOKEN_NOTFOUND: False}, format="json"
-        )
-        # Assert response
-        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
-        self.assertResponseStructure(response)
-        self.assertEqual(response.json()["code"], "conflict")
-        self.assertTrue("Token not found in cookie" in response.json()["message"])
-
     @mock.patch("users.views.auth_views.logger")
-    @mock.patch("users.views.auth_views.get_token_from_cookie")
+    @mock.patch("users.views.auth_views.get_token_from_cookies")
     def test_logout_exception(self, mock_get_token, mock_logger):
         # Arrange: Mock fail function
         client = APIClient(raise_request_exception=False)

@@ -5,8 +5,7 @@ from rest_framework.test import APIClient
 
 from tests.helpers.setup_mock_accounts import create_security_questions
 from tests.helpers.utils import get_error_key_response, CustomAPITestCase
-from users.constants import EventType
-from common.constants import ErrorTypes
+from core.constants import ErrorTypes, EventType
 
 
 class SecurityQuestionsViewsTestCase(CustomAPITestCase):
@@ -56,7 +55,7 @@ class SecurityQuestionsViewsTestCase(CustomAPITestCase):
 
     @mock.patch("users.views.security_question_views.logger")
     @mock.patch(
-        "users.views.security_question_views.SecurityQuestionQuerySerializer.is_valid"
+        "users.views.security_question_views.SecurityQuestionSearchParam.is_valid"
     )
     def test_get_security_questions_internal_server_error(
         self, mock_validate, mock_logger

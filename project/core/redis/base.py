@@ -1,7 +1,7 @@
 from django_redis import get_redis_connection
 
 
-class RedisBase:
+class BaseRedis:
     PREFIX = ""
 
     @classmethod

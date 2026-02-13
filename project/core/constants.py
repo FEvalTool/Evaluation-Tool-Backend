@@ -1,6 +1,11 @@
-class TokenScope:
-    PASSWORD_VERIFY_SCOPE = "PASSWORD_VERIFY_SCOPE"
-    SECURITY_QUESTION_VERIFY_SCOPE = "SECURITY_QUESTION_VERIFY_SCOPE"
+class ErrorTypes:
+    EXCEPTION = "EXCEPTION"
+    UNEXISTED = "UNEXISTED"
+    UNAUTHORIZED = "UNAUTHORIZED"
+    REQUEST_VALIDATION = "REQUEST_VALIDATION"
+    TOKEN_VALIDATION = "TOKEN_VALIDATION"
+    TOKEN_NOT_FOUND = "TOKEN_NOT_FOUND"
+    SECURITY_QA_VALIDATION = "SECURITY_QA_VALIDATION"
 
 
 class EventType:
@@ -17,16 +22,5 @@ class EventType:
     CREATE_SECURITY_QUESTIONS = "CREATE_SECURITY_QUESTIONS"
     LIST_SECURITY_QUESTIONS = "LIST_SECURITY_QUESTIONS"
     GET_USER_INFO = "GET_USER_INFO"
-
-
-PASSWORD_FORMAT = (
-    r"^(?=.*[a-z])"  # at least one lowercase letter
-    r"(?=.*[A-Z])"  # at least one uppercase letter
-    r"(?=.*\d)"  # at least one digit
-    r"(?=.*[@$!%*?&])"  # at least one special character
-    r"[A-Za-z\d@$!%*?&]{12,}$"  # at least 12 characters long
-)
-
-VALID_SECURITY_QA_NUMS = 3
-
-BYPASS_TOKEN_NOTFOUND = "bypass_token_notfound_error"
+    GET_USER_SETUP_STATUS = "GET_USER_SETUP_STATUS"
+    AUTHENTICATION_ATTEMP = "AUTHENTICATION_ATTEMP"

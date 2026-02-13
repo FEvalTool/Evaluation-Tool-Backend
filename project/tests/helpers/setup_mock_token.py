@@ -56,7 +56,7 @@ def create_token(user_id, token_type, scope):
         payload["scope"] = scope
     token = jwt.encode(
         payload,
-        settings.SECRET_KEY,
+        api_settings.SIGNING_KEY,
         algorithm=api_settings.ALGORITHM,
     )
     return token
@@ -65,7 +65,7 @@ def create_token(user_id, token_type, scope):
 def get_jti_from_jwt(token):
     payload = jwt.decode(
         token,
-        settings.SECRET_KEY,
+        api_settings.VERIFYING_KEY,
         algorithms=[api_settings.ALGORITHM],
     )
     jti = payload.get("jti")
