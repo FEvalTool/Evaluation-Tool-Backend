@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "drf_standardized_errors",
+    "storages",
     "core",
     "users",
 ]
@@ -199,6 +200,7 @@ COOKIE_SETTINGS = {
     "AUTH_COOKIE_SAMESITE": "Lax",
 }
 
+# Redis setting
 REDIS_HOST = os.environ.get("REDIS_HOST")
 REDIS_PORT = os.environ.get("REDIS_PORT")
 CACHES = {
@@ -210,3 +212,19 @@ CACHES = {
         },
     }
 }
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+# Garage S3 storage setting
+AWS_ACCESS_KEY_ID = os.environ.get("GARAGE_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.environ.get("GARAGE_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = os.environ.get("GARAGE_BUCKET_AUTH")
+AWS_S3_ENDPOINT_URL = os.environ.get("GARAGE_ENDPOINT_URL")
+AWS_S3_PUBLIC_ENDPOINT_URL = os.environ.get("GARAGE_ENDPOINT_PUBLIC_URL")
+AWS_S3_REGION_NAME = os.environ.get("GARAGE_REGION")

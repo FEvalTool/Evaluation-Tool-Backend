@@ -20,6 +20,7 @@ class Migration(migrations.Migration):
                     ("superadmin", "Super Administrator"),
                 ],
                 default="user",
+                help_text="Global role for user",
                 max_length=20,
             ),
         ),
