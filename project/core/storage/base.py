@@ -9,7 +9,7 @@ class BaseMediaStorage(S3Boto3Storage):
     default_acl = None
     location = ""
 
-    def url(self, name, expire=3600):
+    def url(self, name, expire):
         import boto3
         from botocore.client import Config
 

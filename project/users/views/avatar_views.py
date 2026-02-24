@@ -104,13 +104,94 @@ class AvatarViewSet(ViewSet):
             )
             raise APIException()
 
-    # @action(
-    #     detail=False,
-    #     methods=["delete"],
-    #     url_path="delete",
-    # )
-    # def delete(self, request):
-    #     return JsonResponse(
-    #         {"message": "Successfully delete avatar"},
-    #         status=status.HTTP_204_NO_CONTENT,
-    #     )
+    @action(
+        detail=False,
+        methods=["delete"],
+        url_path="delete",
+    )
+    def delete(self, request):
+        """
+        Endpoint to delete account avatar
+        """
+        try:
+            logger.info(
+                {
+                    "event_type": EventType.DELETE_AVATAR,
+                    "message": "Begin delete avatar",
+                }
+            )
+            user = request.user
+            if user.avatar:
+                # Delete old avatar image
+                self.storage.delete(user.avatar.name)
+                logger.info(
+                    {
+                        "event_type": EventType.DELETE_AVATAR,
+                        "message": "Delete avatar in S3 success - Update user info",
+                    }
+                )
+                # Update avatar
+                logger.info(
+                    {
+                        "event_type": EventType.DELETE_AVATAR,
+                        "message": "Update user info success",
+                    }
+                )
+                user.avatar = None
+                user.save(update_fields=["avatar"])
+            return JsonResponse(
+                {"message": "Successfully delete avatar"},
+                status=status.HTTP_204_NO_CONTENT,
+            )
+        except Exception as e:
+            logger.error(
+                {
+                    "event_type": EventType.DELETE_AVATAR,
+                    "error_type": ErrorTypes.EXCEPTION,
+                    "error_content": str(e),
+                }
+            )
+            raise APIException()
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="get",
+    )
+    def get(self, request):
+        """
+        Endpoint to get account avatar
+        """
+        try:
+            logger.info(
+                {
+                    "event_type": EventType.GET_AVATAR,
+                    "message": "Begin retrieve account avatar",
+                }
+            )
+            user = request.user
+            presigned_url = None
+            if user.avatar:
+                presigned_url = self.storage.url(user.avatar.name)
+
+            logger.info(
+                {
+                    "event_type": EventType.GET_AVATAR,
+                    "message": "Retrieve account avatar success",
+                }
+            )
+            return JsonResponse(
+                {
+                    "message": "Successfully retreive account avatar",
+                    "data": {"avatar": presigned_url},
+                },
+            )
+        except Exception as e:
+            logger.error(
+                {
+                    "event_type": EventType.GET_AVATAR,
+                    "error_type": ErrorTypes.EXCEPTION,
+                    "error_content": str(e),
+                }
+            )
+            raise APIException()
