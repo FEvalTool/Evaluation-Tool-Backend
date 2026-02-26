@@ -82,7 +82,7 @@ class AvatarViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Successfully upload avatar",
-                    "data": {"avatar": presigned_url},
+                    "data": presigned_url,
                 },
             )
         except ValidationError as e:
@@ -183,7 +183,7 @@ class AvatarViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Successfully retreive account avatar",
-                    "data": {"avatar": presigned_url},
+                    "data": presigned_url,
                 },
             )
         except Exception as e:
