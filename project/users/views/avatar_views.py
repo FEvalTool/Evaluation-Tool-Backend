@@ -135,10 +135,7 @@ class AvatarViewSet(ViewSet):
                 )
                 user.avatar = None
                 user.save(update_fields=["avatar"])
-            return JsonResponse(
-                {"message": "Successfully delete avatar"},
-                status=status.HTTP_204_NO_CONTENT,
-            )
+            return JsonResponse({}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             logger.error(
                 {

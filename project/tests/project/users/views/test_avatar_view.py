@@ -62,10 +62,8 @@ class AvatarViewsTestCase(S3TestCase):
         self.assertIsNotNone(self.user.avatar)
         self.assertIn("test_avatar", self.user.avatar.name)
         # Assert file actually exists in mock S3
-        s3_object = self.s3.get_object(
-            Bucket="test-bucket",
-            Key=f"{AvatarsMediaStorage.location}/{self.user.avatar.name}",
-        )
+        key = f"{AvatarsMediaStorage.location}/{self.user.avatar.name}"
+        s3_object = self.s3.get_object(Bucket=self.bucket_name, Key=key)
         self.assertEqual(s3_object["Body"].read(), b"fake-image-content")
         # ASSERT PRESIGNED URL
         presigned_url = response.json()["data"]
@@ -79,17 +77,14 @@ class AvatarViewsTestCase(S3TestCase):
         self.assertIn("X-Amz-Expires", presigned_url)
 
         # Assert it contains the correct bucket and file path
-        self.assertIn("test-bucket", presigned_url)
-        self.assertIn(self.user.avatar.name, presigned_url)
+        self.assertIn(self.bucket_name, presigned_url)
+        self.assertIn(key, presigned_url)
 
     def test_upload_avatar_replaces_old_avatar(self):
         # Arrange — give user an existing avatar
         old_key = self._set_avatar("old_avatar.jpg", b"old-content")
         # Assert before Act, check if image is existed in s3
-        s3_object = self.s3.get_object(
-            Bucket="test-bucket",
-            Key=old_key,
-        )
+        s3_object = self.s3.get_object(Bucket=self.bucket_name, Key=old_key)
         self.assertEqual(s3_object["Body"].read(), b"old-content")
         # Act — upload new avatar
         new_file = self._make_image_file("new_avatar.jpg", b"new-content")
@@ -100,14 +95,12 @@ class AvatarViewsTestCase(S3TestCase):
         )
         # Assert old file deleted from mock S3
         with self.assertRaises(ClientError):
-            self.s3.get_object(Bucket="test-bucket", Key=old_key)
+            self.s3.get_object(Bucket=self.bucket_name, Key=old_key)
         # Assert new file exists in DB and S3
         self.user.refresh_from_db()
         self.assertIn("new_avatar", self.user.avatar.name)
-        s3_object = self.s3.get_object(
-            Bucket="test-bucket",
-            Key=f"{AvatarsMediaStorage.location}/{self.user.avatar.name}",
-        )
+        new_key = f"{AvatarsMediaStorage.location}/{self.user.avatar.name}"
+        s3_object = self.s3.get_object(Bucket=self.bucket_name, Key=new_key)
         self.assertEqual(s3_object["Body"].read(), b"new-content")
 
     def test_upload_avatar_validation_failure(self):
@@ -142,6 +135,99 @@ class AvatarViewsTestCase(S3TestCase):
         mock_logger.error.assert_called_once()
         logged_data = mock_logger.error.call_args[0][0]
         self.assertEqual(logged_data["event_type"], EventType.UPLOAD_AVATAR)
+        self.assertEqual(logged_data["error_type"], ErrorTypes.EXCEPTION)
+        self.assertEqual(logged_data["error_content"], exception_message)
+        # Assert response
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
+        self.assertEqual(response.json()["code"], "error")
+
+    def test_delete_avatar_success_case_no_avatar(self):
+        # Act — upload new avatar
+        response = self.client.delete(self.delete_avatar_url)
+        # Assert response status
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_delete_avatar_success_case_exist_avatar(self):
+        # Arrange — give user an existing avatar
+        key = self._set_avatar()
+        # Act — upload new avatar
+        self.client.delete(self.delete_avatar_url)
+        # Assert file deleted from mock S3 and DB
+        with self.assertRaises(ClientError):
+            self.s3.get_object(Bucket=self.bucket_name, Key=key)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.avatar)
+
+    @mock.patch("users.views.avatar_views.logger")
+    @mock.patch("users.views.avatar_views.JsonResponse")
+    def test_delete_avatar_exception(self, mock_json_response, mock_logger):
+        # Arrange: Mock fail function and set cookie
+        client = APIClient(raise_request_exception=False)
+        client.cookies[ACCESS_TOKEN] = TokenFactory.valid_token(
+            token_type=ACCESS_TOKEN, username=ACTIVE_USER_USERNAME
+        )
+        exception_message = (
+            "Delete avatar: Unexpected error when creating json response"
+        )
+        mock_json_response.side_effect = Exception(exception_message)
+        # Act
+        response = client.delete(self.delete_avatar_url)
+        # Assert log content to log correct exception
+        mock_logger.error.assert_called_once()
+        logged_data = mock_logger.error.call_args[0][0]
+        self.assertEqual(logged_data["event_type"], EventType.DELETE_AVATAR)
+        self.assertEqual(logged_data["error_type"], ErrorTypes.EXCEPTION)
+        self.assertEqual(logged_data["error_content"], exception_message)
+        # Assert response
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertResponseStructure(response)
+        self.assertEqual(response.json()["code"], "error")
+
+    def test_get_avatar_success_case_no_avatar(self):
+        # Act — upload new avatar
+        response = self.client.get(self.get_avatar_url)
+        # Assert response
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertResponseStructure(response, has_data=True)
+        self.assertIsNone(response.json()["data"])
+
+    def test_get_avatar_success_case_exist_avatar(self):
+        # Arrange — give user an existing avatar
+        key = self._set_avatar()
+        # Act — upload new avatar
+        response = self.client.get(self.get_avatar_url)
+        # Assert correct presigned url return
+        presigned_url = response.json()["data"]
+        # Assert it's a non-empty string
+        self.assertIsInstance(presigned_url, str)
+        self.assertTrue(len(presigned_url) > 0)
+
+        # Assert it contains required presigned URL query parameters
+        self.assertIn("X-Amz-Signature", presigned_url)
+        self.assertIn("X-Amz-Credential", presigned_url)
+        self.assertIn("X-Amz-Expires", presigned_url)
+
+        # Assert it contains the correct bucket and file path
+        self.assertIn(self.bucket_name, presigned_url)
+        self.assertIn(key, presigned_url)
+
+    @mock.patch("users.views.avatar_views.logger")
+    @mock.patch("users.views.avatar_views.JsonResponse")
+    def test_get_avatar_exception(self, mock_json_response, mock_logger):
+        # Arrange: Mock fail function and set cookie
+        client = APIClient(raise_request_exception=False)
+        client.cookies[ACCESS_TOKEN] = TokenFactory.valid_token(
+            token_type=ACCESS_TOKEN, username=ACTIVE_USER_USERNAME
+        )
+        exception_message = "Get avatar: Unexpected error when creating json response"
+        mock_json_response.side_effect = Exception(exception_message)
+        # Act
+        response = client.get(self.get_avatar_url)
+        # Assert log content to log correct exception
+        mock_logger.error.assert_called_once()
+        logged_data = mock_logger.error.call_args[0][0]
+        self.assertEqual(logged_data["event_type"], EventType.GET_AVATAR)
         self.assertEqual(logged_data["error_type"], ErrorTypes.EXCEPTION)
         self.assertEqual(logged_data["error_content"], exception_message)
         # Assert response
