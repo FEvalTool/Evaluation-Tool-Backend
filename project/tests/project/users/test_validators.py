@@ -1,7 +1,17 @@
 from django.test import TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import serializers
-from users.validators import AvatarImgValidators
+from users.validators import UserValidators, AvatarImgValidators
+
+
+class UserValidatorsTestCase(TestCase):
+    def test_validate_valid_password(self):
+        UserValidators.password_validator("Password12345@")
+
+    def test_validate_invalid_password(self):
+        with self.assertRaises(serializers.ValidationError) as ctx:
+            UserValidators.password_validator("password")
+        self.assertIn("password", ctx.exception.detail)
 
 
 class AvatarImgValidatorsTestCase(TestCase):
