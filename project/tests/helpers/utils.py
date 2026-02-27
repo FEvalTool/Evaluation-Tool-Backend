@@ -1,4 +1,6 @@
-from django.test import TestCase
+import boto3
+from moto import mock_aws
+from django.test import TestCase, override_settings
 
 
 def get_error_key_response(response):
@@ -55,3 +57,49 @@ class CustomAPITestCase(TestCase):
             self.fail(f"Unexpected status code: {status_code}")
 
         return data
+
+
+MOTO_SETTINGS = {
+    "AWS_ACCESS_KEY_ID": "fake-key",
+    "AWS_SECRET_ACCESS_KEY": "fake-secret",
+    "AWS_STORAGE_BUCKET_NAME": "test-bucket",
+    "AWS_S3_REGION_NAME": "us-east-1",
+    "AWS_S3_ENDPOINT_URL": None,
+    "AWS_S3_SIGNATURE_VERSION": "s3v4",
+}
+
+
+@override_settings(**MOTO_SETTINGS)
+class S3TestCase(CustomAPITestCase):
+    """
+    Base test class for any test that involves S3 storage.
+    Inherits CustomAPITestCase so S3 tests also have access
+    to assertResponseStructure and other helpers.
+    """
+
+    bucket_name = "test-bucket"
+
+    def setUp(self):
+        # Start moto explicitly before anything else
+        self.mock_aws = mock_aws()
+        self.mock_aws.start()
+
+        # Create mock bucket
+        self.s3 = boto3.client("s3", region_name="us-east-1")
+        self.s3.create_bucket(Bucket=self.bucket_name)
+
+        # Reinitialize field storage inside active moto context
+        from users.models import CustomUser
+        from core.storage.avatar import AvatarsMediaStorage
+
+        CustomUser.avatar.field.storage = AvatarsMediaStorage()
+
+    def tearDown(self):
+        # Stop moto after each test
+        self.mock_aws.stop()
+
+        # Restore original storage instances
+        from core.storage.avatar import AvatarsMediaStorage
+        from users.models import CustomUser
+
+        CustomUser.avatar.field.storage = AvatarsMediaStorage()

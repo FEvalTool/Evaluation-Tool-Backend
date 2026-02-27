@@ -1,46 +1,19 @@
-import boto3
-from moto import mock_aws
-from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
+
 from users.models import CustomUser
-from users.views.avatar_views import AvatarViewSet
 from tests.helpers.setup_mock_accounts import create_test_users, ACTIVE_USER_USERNAME
 from tests.helpers.setup_mock_token import TokenFactory
+from tests.helpers.utils import S3TestCase
 from core.auth.constants import ACCESS_TOKEN
 
 
-MOTO_SETTINGS = {
-    "AWS_ACCESS_KEY_ID": "fake-key",
-    "AWS_SECRET_ACCESS_KEY": "fake-secret",
-    "AWS_STORAGE_BUCKET_NAME": "test-bucket",
-    "AWS_S3_REGION_NAME": "us-east-1",
-    "AWS_S3_ENDPOINT_URL": None,  # must be None so moto can intercept
-    "AWS_S3_SIGNATURE_VERSION": "s3v4",
-}
-
-
-@mock_aws
-@override_settings(**MOTO_SETTINGS)
-class AvatarViewsTestCase(TestCase):
+class AvatarViewsTestCase(S3TestCase):
     def setUp(self):
-        # Create mock bucket
-        self.s3 = boto3.client("s3", region_name="us-east-1")
-        self.s3.create_bucket(Bucket="test-bucket")
-
-        # Reinitialize field storage inside moto context
-        from users.models import CustomUser
-        from core.storage import AvatarsMediaStorage
-
-        CustomUser.avatar.field.storage = AvatarsMediaStorage()
-
-        # Create user
+        super().setUp()
         create_test_users()
         self.user = CustomUser.objects.get(username=ACTIVE_USER_USERNAME)
-
-        self.avatar_store_location = AvatarsMediaStorage().location
-
         # Set up API client
         self.client = APIClient()
         self.client.cookies[ACCESS_TOKEN] = TokenFactory.valid_token(
@@ -78,10 +51,10 @@ class AvatarViewsTestCase(TestCase):
         self.assertIsNotNone(self.user.avatar)
         self.assertIn("test_avatar", self.user.avatar.name)
 
-        # Assert file actually exists in mock S3
+        # # Assert file actually exists in mock S3
         s3_object = self.s3.get_object(
             Bucket="test-bucket",
-            Key=f"{self.avatar_store_location}/{self.user.avatar.name}",
+            Key=f"media/avatars/{self.user.avatar.name}",
         )
         self.assertEqual(s3_object["Body"].read(), b"fake-image-content")
 
