@@ -27,12 +27,6 @@ class AvatarViewSet(ViewSet):
     authentication_classes = [
         configure_auth(cookie_priority=[settings.COOKIE_SETTINGS["AUTH_COOKIE_ACCESS"]])
     ]
-    storage = AvatarsMediaStorage()
-
-    def _delete_old_avatar(self, old_key):
-        """Delete old avatar from S3 if it exists."""
-        if old_key:
-            self.storage.delete(old_key)
 
     @action(
         detail=False,
@@ -59,10 +53,11 @@ class AvatarViewSet(ViewSet):
                     "message": "Validate file complete - begin upload",
                 }
             )
+            storage = AvatarsMediaStorage()
             user = request.user
             if user.avatar:
                 # Delete old avatar image
-                self.storage.delete(user.avatar.name)
+                storage.delete(user.avatar.name)
             # Generate filename with original name + unix timestamp
             original_name = file.name.rsplit(".", 1)[0]  # filename without ext
             ext = file.name.rsplit(".", 1)[-1]
@@ -71,7 +66,7 @@ class AvatarViewSet(ViewSet):
             user.avatar = file
             user.save(update_fields=["avatar"])
             # Return presigned URL
-            presigned_url = self.storage.url(user.avatar.name)
+            presigned_url = storage.url(user.avatar.name)
 
             logger.info(
                 {
@@ -122,8 +117,9 @@ class AvatarViewSet(ViewSet):
             )
             user = request.user
             if user.avatar:
+                storage = AvatarsMediaStorage()
                 # Delete old avatar image
-                self.storage.delete(user.avatar.name)
+                storage.delete(user.avatar.name)
                 logger.info(
                     {
                         "event_type": EventType.DELETE_AVATAR,
@@ -172,7 +168,8 @@ class AvatarViewSet(ViewSet):
             user = request.user
             presigned_url = None
             if user.avatar:
-                presigned_url = self.storage.url(user.avatar.name)
+                storage = AvatarsMediaStorage()
+                presigned_url = storage.url(user.avatar.name)
 
             logger.info(
                 {
