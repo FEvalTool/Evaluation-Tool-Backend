@@ -1,3 +1,4 @@
+from pathlib import Path
 from django.conf import settings
 from storages.backends.s3boto3 import S3Boto3Storage
 
@@ -9,13 +10,29 @@ class BaseMediaStorage(S3Boto3Storage):
     default_acl = None
     location = ""
 
+
+class CDNMediaStorage(BaseMediaStorage):
+    bucket_name = settings.GARAGE_BUCKET_PUBLIC
+
+    def public_url(self, file_name):
+        host = settings.GARAGE_CDN_HOST
+        port = settings.GARAGE_CDN_PORT
+        path = str(Path(self.location) / Path(file_name))
+        return f"http://{host}:{port}/{path}"
+
+
+class S3MediaStorage(BaseMediaStorage):
+    bucket_name = settings.GARAGE_BUCKET_AUTH
+
     def url(self, name, expire):
         import boto3
         from botocore.client import Config
 
+        url = f"http://{settings.GARAGE_S3_HOST}:{settings.GARAGE_S3_PORT}"
+
         client = boto3.client(
             "s3",
-            endpoint_url=settings.AWS_S3_PUBLIC_ENDPOINT_URL,  # public URL for signing
+            endpoint_url=url,  # public URL for signing
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
             aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
             region_name=settings.AWS_S3_REGION_NAME,

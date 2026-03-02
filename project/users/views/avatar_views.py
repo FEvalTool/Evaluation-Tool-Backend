@@ -66,7 +66,7 @@ class AvatarViewSet(ViewSet):
             user.avatar = file
             user.save(update_fields=["avatar"])
             # Return presigned URL
-            presigned_url = storage.url(user.avatar.name)
+            url = storage.public_url(user.avatar.name)
 
             logger.info(
                 {
@@ -77,7 +77,7 @@ class AvatarViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Successfully upload avatar",
-                    "data": presigned_url,
+                    "data": url,
                 },
             )
         except ValidationError as e:
@@ -163,10 +163,10 @@ class AvatarViewSet(ViewSet):
                 }
             )
             user = request.user
-            presigned_url = None
+            url = None
             if user.avatar:
                 storage = AvatarsMediaStorage()
-                presigned_url = storage.url(user.avatar.name)
+                url = storage.public_url(user.avatar.name)
 
             logger.info(
                 {
@@ -177,7 +177,7 @@ class AvatarViewSet(ViewSet):
             return JsonResponse(
                 {
                     "message": "Successfully retreive account avatar",
-                    "data": presigned_url,
+                    "data": url,
                 },
             )
         except Exception as e:

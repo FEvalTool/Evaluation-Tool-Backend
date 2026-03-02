@@ -221,10 +221,16 @@ STORAGES = {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
-# Garage S3 storage setting
+# Django storage setting
 AWS_ACCESS_KEY_ID = os.environ.get("GARAGE_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.environ.get("GARAGE_SECRET_ACCESS_KEY")
-AWS_STORAGE_BUCKET_NAME = os.environ.get("GARAGE_BUCKET_AUTH")
 AWS_S3_ENDPOINT_URL = os.environ.get("GARAGE_ENDPOINT_URL")
-AWS_S3_PUBLIC_ENDPOINT_URL = os.environ.get("GARAGE_ENDPOINT_PUBLIC_URL")
 AWS_S3_REGION_NAME = os.environ.get("GARAGE_REGION")
+
+# Custom garage setting
+GARAGE_CDN_HOST = os.environ.get("GARAGE_CDN_HOST")
+GARAGE_CDN_PORT = os.environ.get("GARAGE_CDN_PORT")
+GARAGE_S3_HOST = os.environ.get("GARAGE_S3_HOST")
+GARAGE_S3_PORT = os.environ.get("GARAGE_S3_PORT")
+GARAGE_BUCKET_PUBLIC = os.environ.get("GARAGE_BUCKET_PUBLIC")
+GARAGE_BUCKET_AUTH = os.environ.get("GARAGE_BUCKET_AUTH")
