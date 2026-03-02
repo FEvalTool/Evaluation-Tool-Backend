@@ -55,6 +55,8 @@ jobs:
         REDIS_PORT: 6379
         GARAGE_BUCKET_PUBLIC: public
         GARAGE_BUCKET_AUTH: auth
+        GARAGE_CDN_ROOT_DOMAIN: cdn.eduscrum.local
+        GARAGE_CDN_PORT: 3902
     - name: Run SonarCloud Scanner
       uses: SonarSource/sonarqube-scan-action@v4.2.1
       env:

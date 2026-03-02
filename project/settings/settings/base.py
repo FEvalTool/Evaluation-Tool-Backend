@@ -228,7 +228,7 @@ AWS_S3_ENDPOINT_URL = os.environ.get("GARAGE_ENDPOINT_URL")
 AWS_S3_REGION_NAME = os.environ.get("GARAGE_REGION")
 
 # Custom garage setting
-GARAGE_CDN_HOST = os.environ.get("GARAGE_CDN_HOST")
+GARAGE_CDN_ROOT_DOMAIN = os.environ.get("GARAGE_CDN_ROOT_DOMAIN")
 GARAGE_CDN_PORT = os.environ.get("GARAGE_CDN_PORT")
 GARAGE_S3_HOST = os.environ.get("GARAGE_S3_HOST")
 GARAGE_S3_PORT = os.environ.get("GARAGE_S3_PORT")
