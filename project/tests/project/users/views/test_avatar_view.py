@@ -1,6 +1,7 @@
 from unittest import mock
 from botocore.exceptions import ClientError
 from django.urls import reverse
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.base import ContentFile
 from rest_framework import status
@@ -16,6 +17,8 @@ from tests.helpers.utils import S3TestCase, get_error_key_response
 
 
 class AvatarViewsTestCase(S3TestCase):
+    bucket_name = settings.GARAGE_BUCKET_PUBLIC
+
     def setUp(self):
         super().setUp()
         # Generate user data
@@ -65,20 +68,14 @@ class AvatarViewsTestCase(S3TestCase):
         key = f"{AvatarsMediaStorage.location}/{self.user.avatar.name}"
         s3_object = self.s3.get_object(Bucket=self.bucket_name, Key=key)
         self.assertEqual(s3_object["Body"].read(), b"fake-image-content")
-        # ASSERT PRESIGNED URL
-        presigned_url = response.json()["data"]
+        # Assert url
+        avatar_url = response.json()["data"]
         # Assert it's a non-empty string
-        self.assertIsInstance(presigned_url, str)
-        self.assertTrue(len(presigned_url) > 0)
-
-        # Assert it contains required presigned URL query parameters
-        self.assertIn("X-Amz-Signature", presigned_url)
-        self.assertIn("X-Amz-Credential", presigned_url)
-        self.assertIn("X-Amz-Expires", presigned_url)
-
+        self.assertIsInstance(avatar_url, str)
+        self.assertTrue(len(avatar_url) > 0)
         # Assert it contains the correct bucket and file path
-        self.assertIn(self.bucket_name, presigned_url)
-        self.assertIn(key, presigned_url)
+        self.assertIn(self.bucket_name, avatar_url)
+        self.assertIn(key, avatar_url)
 
     def test_upload_avatar_replaces_old_avatar(self):
         # Arrange — give user an existing avatar
@@ -197,20 +194,14 @@ class AvatarViewsTestCase(S3TestCase):
         key = self._set_avatar()
         # Act — upload new avatar
         response = self.client.get(self.get_avatar_url)
-        # Assert correct presigned url return
-        presigned_url = response.json()["data"]
+        # Assert correct url return
+        avatar_url = response.json()["data"]
         # Assert it's a non-empty string
-        self.assertIsInstance(presigned_url, str)
-        self.assertTrue(len(presigned_url) > 0)
-
-        # Assert it contains required presigned URL query parameters
-        self.assertIn("X-Amz-Signature", presigned_url)
-        self.assertIn("X-Amz-Credential", presigned_url)
-        self.assertIn("X-Amz-Expires", presigned_url)
-
+        self.assertIsInstance(avatar_url, str)
+        self.assertTrue(len(avatar_url) > 0)
         # Assert it contains the correct bucket and file path
-        self.assertIn(self.bucket_name, presigned_url)
-        self.assertIn(key, presigned_url)
+        self.assertIn(self.bucket_name, avatar_url)
+        self.assertIn(key, avatar_url)
 
     @mock.patch("users.views.avatar_views.logger")
     @mock.patch("users.views.avatar_views.JsonResponse")
