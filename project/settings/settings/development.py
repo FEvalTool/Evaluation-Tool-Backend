@@ -21,7 +21,7 @@ CORS_ORIGIN_ALLOW_ALL = False
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://.*\.eduscrum\.local:\d+$",
 ]
-CORS_ALLOW_METHODS = ["POST", "GET", "PATCH", "PUT", "OPTIONS"]
+CORS_ALLOW_METHODS = ["POST", "GET", "PATCH", "PUT", "OPTIONS", "DELETE"]
 ALLOWED_HOSTS = ["user-backend", "api.auth.eduscrum.local"]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [

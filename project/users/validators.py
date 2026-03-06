@@ -23,4 +23,24 @@ class UserValidators:
             r"[A-Za-z\d@$!%*?&]{12,}$"  # at least 12 characters long
         )
         if re.search(PASSWORD_FORMAT, password) is None:
-            raise serializers.ValidationError("Incorrect password format")
+            raise serializers.ValidationError({"password": "Incorrect password format"})
+
+
+class AvatarImgValidators:
+    MAX_AVATAR_SIZE_MB = 5
+    ALLOWED_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"]
+
+    @classmethod
+    def validate(cls, file):
+        if file is None:
+            raise serializers.ValidationError({"avatar": "File not found"})
+        if file.content_type not in cls.ALLOWED_CONTENT_TYPES:
+            raise serializers.ValidationError(
+                {
+                    "avatar": f"Invalid file type. Allowed: {', '.join(cls.ALLOWED_CONTENT_TYPES)}"
+                }
+            )
+        if file.size > cls.MAX_AVATAR_SIZE_MB * 1024 * 1024:
+            raise serializers.ValidationError(
+                {"avatar": f"File too large. Max size is {cls.MAX_AVATAR_SIZE_MB} MB."}
+            )

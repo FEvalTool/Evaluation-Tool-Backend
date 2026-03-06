@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.utils import timezone
 from .validators import UserValidators
+from core.storage import AvatarsMediaStorage
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
@@ -29,6 +30,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         validators=[UserValidators.identity_number_validator],
         max_length=12,
         help_text="Your identity number",
+    )
+    avatar = models.ImageField(
+        storage=AvatarsMediaStorage, help_text="Account avatar", null=True, blank=True
     )
     is_active = models.BooleanField(default=True, help_text="Is this user active")
     date_joined = models.DateTimeField(
